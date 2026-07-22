@@ -14,9 +14,13 @@ unimplemented — they get built one feature request at a time.
 
 Every new feature request is turned into an acceptance test *before* it's implemented:
 
-1. **Write a `.feature` file** in `tests/bdd/features/<capability>.feature` describing
-   the behavior in Gherkin (`Given`/`When`/`Then`). One feature file per capability —
-   don't pile unrelated behavior into an existing file.
+0–1. **Check for an existing match/conflict, then draft or extend the `.feature`
+   file.** Use the `add-feature` skill (`.agent/skills/add-feature/`, symlinked at
+   `.claude/skills/`) for this — it owns the classification criteria (belongs to an
+   existing capability / contradicts an existing scenario / genuinely new) and the
+   Gherkin drafting conventions, so they're not repeated here. It stops after
+   drafting and sanity-checking the scenario; it does not write step definitions or
+   application code.
 2. **Add step definitions** in `tests/bdd/steps/`. Put the scenario's steps in a
    `test_<capability>.py` module that does:
    ```python
