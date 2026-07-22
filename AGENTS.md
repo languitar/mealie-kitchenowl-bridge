@@ -40,10 +40,31 @@ Every new feature request is turned into an acceptance test *before* it's implem
    `tests/integration/` (a client wrapper against a stubbed HTTP server/`requests_mock`,
    without going through Flask).
 
-Acceptance scenarios always go through Flask's test client
-(`app.test_client()`, via the `client`/`running_app` fixtures) with the real
-Mealie/KitchenOwl HTTP calls stubbed via `requests_mock`. Never hit live services in
-tests.
+Acceptance scenarios default to Flask's test client (`app.test_client()`, via the
+`client`/`running_app` fixtures) with the real Mealie/KitchenOwl HTTP calls stubbed
+via `requests_mock`. Never hit live services in tests.
+
+### Browser-driven scenarios
+
+Some behavior — real DOM rendering, HTMX partial swaps, client-side JS — can't be
+verified through the Flask test client and needs an actual browser. For that, tag the
+`Scenario` with `@browser` (pytest-bdd maps Gherkin tags to pytest markers
+automatically) and write its steps against the `page` fixture (from
+`pytest-playwright`) and the `live_server` fixture (serves the real `app` on a real
+port — see `tests/bdd/conftest.py`; this overrides `pytest-flask`'s own `live_server`,
+which is broken under Python 3.14's `forkserver` multiprocessing default). See
+`tests/bdd/features/home_page.feature` / `tests/bdd/steps/test_home_page.py` for the
+pattern.
+
+Default to the fast Flask-test-client tier — reach for `@browser` only when the
+behavior genuinely requires a real browser. Browser scenarios are excluded from the
+default `uv run pytest` (see `addopts` in `pyproject.toml`) since they need Chromium
+installed; run them explicitly:
+
+```bash
+uv run playwright install chromium  # one-time setup
+uv run pytest -m browser
+```
 
 ## Deferred decisions
 

@@ -17,8 +17,3 @@ def config() -> Config:
 @pytest.fixture
 def app(config: Config):
     return create_app(config)
-
-
-@pytest.fixture
-def client(app):
-    return app.test_client()

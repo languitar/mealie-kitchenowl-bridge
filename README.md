@@ -14,6 +14,7 @@ Dependencies are managed with [uv](https://docs.astral.sh/uv/), pinned via `uv.l
 ```bash
 uv sync
 cp .env.example .env  # then fill in real Mealie/KitchenOwl URLs and tokens
+uv run playwright install chromium  # only needed for browser-based tests
 ```
 
 ## Running
@@ -27,7 +28,8 @@ uv run flask --app bridge.app:create_app run
 ## Testing
 
 ```bash
-uv run pytest
+uv run pytest              # fast suite: unit, integration, and Flask-test-client BDD scenarios
+uv run pytest -m browser   # browser-driven BDD scenarios (needs `playwright install chromium`)
 uv run ruff check .
 ```
 
