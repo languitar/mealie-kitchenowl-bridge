@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bridge"
+version = "0.1.0"
+description = "Bridge that pushes Mealie recipe ingredients onto a KitchenOwl shopping list"
+requires-python = ">=3.11"
+dependencies = [
+    "flask>=3.0",
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-bdd>=7.0",
+    "requests-mock>=1.12",
+    "ruff>=0.6",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bridge"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    # pytest-bdd 8.1.0's compat shim still calls a pytest-internal fixture
+    # registration API using the (pytest 10-removed) nodeid= argument. Not
+    # something we control; remove once pytest-bdd ships a fix.
+    "ignore:Passing nodeid to _register_fixture is deprecated:pytest.PytestRemovedIn10Warning",
+    "ignore:Passing baseid to FixtureDef is deprecated:pytest.PytestRemovedIn10Warning",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
