@@ -67,8 +67,11 @@ settled, and revisit them as their own feature requests when they become relevan
 
 ## Conventions
 
-- `src/` layout, package name `bridge`, installed editable (`pip install -e .[dev]`).
+- `src/` layout, package name `bridge`, dependencies managed with
+  [uv](https://docs.astral.sh/uv/) (`uv sync` installs both runtime deps and the
+  `dev` dependency group; `uv.lock` pins everything — regenerate it with `uv lock`
+  after changing dependencies, and commit the updated lockfile).
 - Flask blueprints per concern, registered in `src/bridge/app.py`.
 - HTMX is vendored at `src/bridge/static/htmx.min.js` — no CDN dependency.
-- Lint with `ruff check .`.
-- Run tests with `pytest` (runs both BDD and plain unit/integration tests).
+- Lint with `uv run ruff check .`.
+- Run tests with `uv run pytest` (runs both BDD and plain unit/integration tests).

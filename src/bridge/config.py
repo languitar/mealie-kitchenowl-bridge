@@ -10,7 +10,7 @@ class Config:
     kitchenowl_api_token: str
 
     @classmethod
-    def from_env(cls) -> "Config":
+    def from_env(cls) -> Config:
         return cls(
             mealie_url=os.environ.get("MEALIE_URL", ""),
             mealie_api_token=os.environ.get("MEALIE_API_TOKEN", ""),
