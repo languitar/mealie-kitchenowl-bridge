@@ -75,11 +75,13 @@ uv run pytest -m browser
 These were explicitly deferred when the skeleton was created — don't assume they're
 settled, and revisit them as their own feature requests when they become relevant:
 
-- **Mealie trigger shape**: it's not yet confirmed whether Mealie's recipe action
-  opens a URL in the browser (GET, with template variables like the recipe slug) or
-  posts a server-to-server webhook. Verify against a real Mealie instance/its docs
-  when implementing the first triggering feature, and adjust `routes/webhook.py`
-  accordingly.
+- **Mealie trigger shape**: resolved for the recipe-to-shopping-list feature. Mealie
+  is configured with a "Post"-type recipe action, which POSTs the full recipe JSON
+  (including `recipeIngredient` with pre-formatted `display` strings) to
+  `routes/webhook.py`'s `/recipes/action` endpoint - so the bridge never calls back
+  into Mealie's own API for this feature, and `clients/mealie.py` stays an unused
+  placeholder. Revisit if a future feature needs data Mealie doesn't include in that
+  payload (at which point a real Mealie API client/token would be needed).
 - **Auth**: none. A single shared Mealie API token and a single shared KitchenOwl API
   token are configured via environment variables (see `.env.example`). No login
   screen, no per-user credentials. Multi-user auth (e.g. an identity provider such as
@@ -98,5 +100,9 @@ settled, and revisit them as their own feature requests when they become relevan
   after changing dependencies, and commit the updated lockfile).
 - Flask blueprints per concern, registered in `src/bridge/app.py`.
 - HTMX is vendored at `src/bridge/static/htmx.min.js` — no CDN dependency.
+- UI design should follow KitchenOwl's own UI (layout, styling, interaction patterns)
+  rather than Mealie's or an independent style, since the bridge's screens are the
+  step just before pushing onto a KitchenOwl list and should feel like part of that
+  experience.
 - Lint with `uv run ruff check .`.
 - Run tests with `uv run pytest` (runs both BDD and plain unit/integration tests).

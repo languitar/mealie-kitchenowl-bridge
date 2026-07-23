@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Added to {{ shopping_list_name }}{% endblock %}
+
+{% block content %}
+<p>Added {{ ingredients | length }} ingredient(s) to "{{ shopping_list_name }}".</p>
+<ul>
+  {% for ingredient in ingredients %}
+  <li>{{ ingredient }}</li>
+  {% endfor %}
+</ul>
+{% endblock %}
