@@ -28,10 +28,15 @@ uv run flask --app bridge.app:create_app run
 ## Testing
 
 ```bash
-uv run pytest              # fast suite: unit, integration, and Flask-test-client BDD scenarios
+uv run pytest              # unit, integration, and Flask-test-client BDD scenarios
 uv run pytest -m browser   # browser-driven BDD scenarios (needs `playwright install chromium`)
 uv run ruff check .
 ```
+
+The default suite needs a working local Docker daemon: scenarios that exercise
+KitchenOwl run against a real instance in a container (started automatically) rather
+than a mock, so tests can't drift from KitchenOwl's actual API behavior - see
+AGENTS.md.
 
 ## Docker
 

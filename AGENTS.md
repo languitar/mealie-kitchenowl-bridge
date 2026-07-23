@@ -45,8 +45,27 @@ Every new feature request is turned into an acceptance test *before* it's implem
    without going through Flask).
 
 Acceptance scenarios default to Flask's test client (`app.test_client()`, via the
-`client`/`running_app` fixtures) with the real Mealie/KitchenOwl HTTP calls stubbed
-via `requests_mock`. Never hit live services in tests.
+`client`/`running_app` fixtures). How the KitchenOwl/Mealie side is faked differs:
+
+- **Mealie**: stub its HTTP calls with `requests_mock` (available automatically as a
+  fixture). Never hit the live service in tests.
+- **KitchenOwl**: run scenarios against a **real KitchenOwl instance in a container**
+  instead of mocking it - hand-written stubs of its API can quietly drift from what
+  it actually does, giving false confidence. Use the `kitchenowl_household` fixture
+  (`tests/bdd/conftest.py`, backed by `tests/bdd/kitchenowl_container.py`): it starts
+  one container per test *session* (`kitchenowl_server`, session-scoped - only paid by
+  tests that request it) and gives each test its own household for isolation
+  (`kitchenowl_household`, function-scoped). Point a test module's `config` fixture at
+  it by overriding `config` locally (see `tests/bdd/steps/test_recipe_to_shopping_list.py`
+  for the pattern) rather than touching the shared one in `tests/conftest.py`, so
+  scenarios that don't touch KitchenOwl (e.g. `health_check`, `home_page`) stay fast.
+  `requests_mock` is still the right tool for KitchenOwl-client error-path/edge-case
+  tests at the `tests/unit`/`tests/integration` tier (item 4 above) - simulating a 500
+  response is impractical against a real instance.
+
+Running the full default suite therefore needs a working local Docker daemon (the
+KitchenOwl image is pulled/started automatically, no manual `docker compose up`
+needed for tests).
 
 ### Browser-driven scenarios
 

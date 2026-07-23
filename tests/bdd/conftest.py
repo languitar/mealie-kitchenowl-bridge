@@ -1,13 +1,19 @@
 # Shared BDD-level fixtures beyond what tests/conftest.py provides.
 #
 # `requests_mock` (from the requests-mock package) is available automatically
-# as a pytest fixture for stubbing calls to the real Mealie/KitchenOwl APIs -
-# acceptance scenarios should never hit live services.
+# as a pytest fixture for stubbing calls to the real Mealie API - acceptance
+# scenarios should never hit live services. KitchenOwl is different: scenarios
+# that exercise it run against a real instance (see `kitchenowl_server` below
+# and AGENTS.md) rather than a mock, so the suite can't drift from its actual
+# API behavior.
 
 import threading
+from dataclasses import dataclass
 
 import pytest
 from werkzeug.serving import make_server
+
+from .kitchenowl_container import KitchenOwlTestServer, start_kitchenowl_container
 
 
 class _LiveServer:
@@ -37,3 +43,34 @@ def live_server(app):
     finally:
         server.shutdown()
         thread.join()
+
+
+@pytest.fixture(scope="session")
+def kitchenowl_server():
+    """Start one real KitchenOwl container for the whole test session.
+
+    Only tests that request this (directly or via `kitchenowl_household`) pay
+    the container startup cost - `health_check`/`home_page` scenarios never
+    touch it.
+    """
+    container, server = start_kitchenowl_container()
+    try:
+        yield server
+    finally:
+        container.stop()
+
+
+@dataclass
+class KitchenOwlHousehold:
+    server: KitchenOwlTestServer
+    id: int
+
+
+@pytest.fixture
+def kitchenowl_household(kitchenowl_server):
+    """A fresh KitchenOwl household per test, for isolation without restarting
+    the container - each household starts with its own "Default" shopping
+    list and no items shared with other tests.
+    """
+    household_id = kitchenowl_server.create_household("Bridge Test Household")
+    return KitchenOwlHousehold(server=kitchenowl_server, id=household_id)

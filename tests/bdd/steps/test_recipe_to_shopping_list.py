@@ -1,22 +1,41 @@
+import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 from werkzeug.datastructures import MultiDict
+
+from bridge.config import Config
 
 from .common import *  # noqa: F401,F403
 
 scenarios("../features/recipe_to_shopping_list.feature")
 
 
+@pytest.fixture
+def config(config, kitchenowl_household):
+    """Point KitchenOwl connection details at the real per-test household.
+
+    Overrides `tests/conftest.py`'s `config` fixture, re-requesting it by the
+    same name to keep the (unused, fake) Mealie values as-is - see
+    AGENTS.md's BDD workflow notes on testing against a real KitchenOwl.
+    """
+    return Config(
+        mealie_url=config.mealie_url,
+        mealie_api_token=config.mealie_api_token,
+        kitchenowl_url=kitchenowl_household.server.base_url,
+        kitchenowl_api_token=kitchenowl_household.server.admin_token,
+        kitchenowl_household_id=str(kitchenowl_household.id),
+    )
+
+
 @given(
     parsers.parse('KitchenOwl has the shopping lists "{first_list}" and "{second_list}"'),
     target_fixture="shopping_lists_by_name",
 )
-def kitchenowl_has_shopping_lists(requests_mock, config, first_list, second_list):
-    lists = [{"id": 1, "name": first_list}, {"id": 2, "name": second_list}]
-    requests_mock.get(
-        f"{config.kitchenowl_url}/api/household/{config.kitchenowl_household_id}/shoppinglist",
-        json=lists,
-    )
-    return {item["name"]: item["id"] for item in lists}
+def kitchenowl_has_shopping_lists(kitchenowl_household, first_list, second_list):
+    server = kitchenowl_household.server
+    return {
+        first_list: server.create_shopping_list(kitchenowl_household.id, first_list),
+        second_list: server.create_shopping_list(kitchenowl_household.id, second_list),
+    }
 
 
 def _trigger_recipe_action(running_app, recipe_name, first_ingredient, second_ingredient):
@@ -53,15 +72,8 @@ def see_shopping_lists(triggered, first_list, second_list):
 
 
 @when(parsers.parse('I select the shopping list "{list_name}"'), target_fixture="push_response")
-def select_shopping_list(
-    running_app, triggered, shopping_lists_by_name, list_name, requests_mock, config
-):
+def select_shopping_list(running_app, triggered, shopping_lists_by_name, list_name):
     list_id = shopping_lists_by_name[list_name]
-    requests_mock.post(
-        f"{config.kitchenowl_url}/api/household/{config.kitchenowl_household_id}"
-        f"/shoppinglist/{list_id}/add-item-by-name",
-        json={},
-    )
     return running_app.post(
         f"/shopping-lists/{list_id}",
         data=MultiDict(("ingredient", ingredient) for ingredient in triggered["ingredients"]),
@@ -76,8 +88,7 @@ def select_shopping_list(
 )
 def ingredients_added_to_shopping_list(
     push_response,
-    requests_mock,
-    config,
+    kitchenowl_household,
     shopping_lists_by_name,
     list_name,
     first_ingredient,
@@ -86,12 +97,6 @@ def ingredients_added_to_shopping_list(
     assert push_response.status_code == 200
 
     list_id = shopping_lists_by_name[list_name]
-    add_item_path = (
-        f"/api/household/{config.kitchenowl_household_id}/shoppinglist/{list_id}/add-item-by-name"
-    )
-    added_names = {
-        request.json()["name"]
-        for request in requests_mock.request_history
-        if request.method == "POST" and request.path == add_item_path
-    }
-    assert added_names == {first_ingredient, second_ingredient}
+    items = kitchenowl_household.server.get_shopping_list_items(kitchenowl_household.id, list_id)
+    item_names = {item["name"] for item in items}
+    assert item_names == {first_ingredient, second_ingredient}
