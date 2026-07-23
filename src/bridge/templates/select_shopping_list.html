@@ -7,7 +7,7 @@
 <ul>
   {% for shopping_list in shopping_lists %}
   <li>
-    <form method="post" action="{{ url_for('review.push_to_shopping_list', list_id=shopping_list.id) }}">
+    <form method="post" action="{{ url_for('review.review_ingredients', list_id=shopping_list.id) }}">
       {% for ingredient in ingredients %}
       <input type="hidden" name="ingredient" value="{{ ingredient }}" />
       {% endfor %}

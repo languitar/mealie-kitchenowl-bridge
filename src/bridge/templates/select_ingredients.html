@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Select ingredients for "{{ shopping_list_name }}"{% endblock %}
+
+{% block content %}
+<h1>Add ingredients to "{{ shopping_list_name }}"</h1>
+<form method="post" action="{{ url_for('review.push_to_shopping_list', list_id=list_id) }}">
+  <ul>
+    {% for ingredient in ingredients %}
+    <li>
+      <label>
+        <input type="checkbox" name="ingredient" value="{{ ingredient }}" checked />
+        {{ ingredient }}
+      </label>
+    </li>
+    {% endfor %}
+  </ul>
+  <button type="submit">Add to shopping list</button>
+</form>
+{% endblock %}
