@@ -1,5 +1,6 @@
 from flask import Blueprint, request
 
+from bridge.ingredients import parse_ingredient
 from bridge.routes.review import render_shopping_list_selection
 
 webhook_bp = Blueprint("webhook", __name__)
@@ -15,5 +16,5 @@ def recipe_action():
     needed since the ingredients are already in the body.
     """
     recipe = request.get_json()
-    ingredients = [ingredient["display"] for ingredient in recipe["recipeIngredient"]]
+    ingredients = [parse_ingredient(ingredient) for ingredient in recipe["recipeIngredient"]]
     return render_shopping_list_selection(recipe["name"], ingredients)

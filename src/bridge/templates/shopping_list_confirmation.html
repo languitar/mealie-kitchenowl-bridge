@@ -6,7 +6,7 @@
 <p>Added {{ ingredients | length }} ingredient(s) to "{{ shopping_list_name }}".</p>
 <ul>
   {% for ingredient in ingredients %}
-  <li>{{ ingredient }}</li>
+  <li>{{ ingredient.name }}</li>
   {% endfor %}
 </ul>
 {% endblock %}

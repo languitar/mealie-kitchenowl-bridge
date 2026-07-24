@@ -9,9 +9,10 @@
     {% for ingredient in ingredients %}
     <li>
       <label>
-        <input type="checkbox" name="ingredient" value="{{ ingredient }}" checked />
-        {{ ingredient }}
+        <input type="checkbox" name="ingredient" value="{{ ingredient.name }}" checked />
+        {{ ingredient.name }}
       </label>
+      <input type="hidden" name="quantity:{{ ingredient.name }}" value="{{ ingredient.quantity or '' }}" />
     </li>
     {% endfor %}
   </ul>

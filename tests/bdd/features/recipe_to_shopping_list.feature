@@ -28,3 +28,15 @@ Feature: Push recipe ingredients to a KitchenOwl shopping list
     When I deselect the ingredient "Basil"
     And I confirm the ingredient selection
     Then only the ingredient "Tomatoes" is added to the "Groceries" shopping list in KitchenOwl
+
+  Scenario: Confirming an ingredient with a quantity carries the quantity into KitchenOwl's item description
+    Given a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredient "Tomatoes" and quantity "2 cups"
+    And I have selected the shopping list "Groceries"
+    When I confirm the ingredient selection
+    Then the ingredient "Tomatoes" is added to the "Groceries" shopping list in KitchenOwl with the description "2 cups"
+
+  Scenario: Confirming an ingredient without a quantity leaves KitchenOwl's item description empty
+    Given a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredient "Basil" and no quantity
+    And I have selected the shopping list "Groceries"
+    When I confirm the ingredient selection
+    Then the ingredient "Basil" is added to the "Groceries" shopping list in KitchenOwl with no description

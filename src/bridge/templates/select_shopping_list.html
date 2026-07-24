@@ -9,7 +9,8 @@
   <li>
     <form method="post" action="{{ url_for('review.review_ingredients', list_id=shopping_list.id) }}">
       {% for ingredient in ingredients %}
-      <input type="hidden" name="ingredient" value="{{ ingredient }}" />
+      <input type="hidden" name="ingredient" value="{{ ingredient.name }}" />
+      <input type="hidden" name="quantity:{{ ingredient.name }}" value="{{ ingredient.quantity or '' }}" />
       {% endfor %}
       <button type="submit">{{ shopping_list.name }}</button>
     </form>

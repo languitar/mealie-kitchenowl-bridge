@@ -20,11 +20,15 @@ class KitchenOwlClient:
         response.raise_for_status()
         return [{"id": item["id"], "name": item["name"]} for item in response.json()]
 
-    def add_shopping_list_item(self, list_id: int, name: str) -> None:
+    def add_shopping_list_item(
+        self, list_id: int, name: str, description: str | None = None
+    ) -> None:
+        payload = {"name": name}
+        if description is not None:
+            payload["description"] = description
         response = requests.post(
-            f"{self.base_url}/api/household/{self.household_id}"
-            f"/shoppinglist/{list_id}/add-item-by-name",
+            f"{self.base_url}/api/shoppinglist/{list_id}/add-item-by-name",
             headers=self._headers(),
-            json={"name": name},
+            json=payload,
         )
         response.raise_for_status()

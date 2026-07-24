@@ -1,6 +1,8 @@
 from flask import Blueprint, current_app, render_template, request
+from werkzeug.datastructures import MultiDict
 
 from bridge.clients.kitchenowl import KitchenOwlClient
+from bridge.ingredients import Ingredient
 
 review_bp = Blueprint("review", __name__)
 
@@ -16,7 +18,7 @@ def _shopping_list_name(client: KitchenOwlClient, list_id: int) -> str | None:
     return next((sl["name"] for sl in client.get_shopping_lists() if sl["id"] == list_id), None)
 
 
-def render_shopping_list_selection(recipe_name: str, ingredients: list[str]):
+def render_shopping_list_selection(recipe_name: str, ingredients: list[Ingredient]):
     """Render the dialog for picking which KitchenOwl shopping list to push to.
 
     Ingredients are round-tripped through hidden form fields rather than kept
@@ -31,6 +33,20 @@ def render_shopping_list_selection(recipe_name: str, ingredients: list[str]):
     )
 
 
+def _ingredients_from_form(form: MultiDict) -> list[Ingredient]:
+    """Reassemble ingredients (with quantity) from the round-tripped form fields.
+
+    Each ingredient's quantity travels in its own `quantity:<name>` field
+    (see the templates) rather than a same-order parallel list, so that
+    deselecting an ingredient's checkbox can't desynchronize name/quantity
+    pairs.
+    """
+    return [
+        Ingredient(name=name, quantity=form.get(f"quantity:{name}") or None)
+        for name in form.getlist("ingredient")
+    ]
+
+
 @review_bp.post("/shopping-lists/<int:list_id>")
 def review_ingredients(list_id: int):
     """Render the ingredient review screen, all ingredients pre-selected.
@@ -38,7 +54,7 @@ def review_ingredients(list_id: int):
     Ingredients are again round-tripped through the form (this time as
     checkboxes) rather than kept server-side.
     """
-    ingredients = request.form.getlist("ingredient")
+    ingredients = _ingredients_from_form(request.form)
     return render_template(
         "select_ingredients.html",
         list_id=list_id,
@@ -49,10 +65,10 @@ def review_ingredients(list_id: int):
 
 @review_bp.post("/shopping-lists/<int:list_id>/confirm")
 def push_to_shopping_list(list_id: int):
-    ingredients = request.form.getlist("ingredient")
+    ingredients = _ingredients_from_form(request.form)
     client = _kitchenowl_client()
     for ingredient in ingredients:
-        client.add_shopping_list_item(list_id, ingredient)
+        client.add_shopping_list_item(list_id, ingredient.name, ingredient.quantity)
 
     return render_template(
         "shopping_list_confirmation.html",
