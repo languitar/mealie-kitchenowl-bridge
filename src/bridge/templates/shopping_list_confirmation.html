@@ -3,7 +3,9 @@
 {% block title %}Added to {{ shopping_list_name }}{% endblock %}
 
 {% block content %}
-<p>Added {{ ingredients | length }} ingredient(s) to "{{ shopping_list_name }}".</p>
+<div class="notification is-success">
+  Added {{ ingredients | length }} ingredient(s) to "{{ shopping_list_name }}".
+</div>
 <ul>
   {% for ingredient in ingredients %}
   <li>{{ ingredient.name }}</li>

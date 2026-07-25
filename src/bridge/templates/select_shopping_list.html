@@ -3,18 +3,16 @@
 {% block title %}Add "{{ recipe_name }}" to a shopping list{% endblock %}
 
 {% block content %}
-<h1>Add "{{ recipe_name }}" to a shopping list</h1>
-<ul>
+<h1 class="title">Add "{{ recipe_name }}" to a shopping list</h1>
+<div class="buttons">
   {% for shopping_list in shopping_lists %}
-  <li>
-    <form method="post" action="{{ url_for('review.review_ingredients', list_id=shopping_list.id) }}">
-      {% for ingredient in ingredients %}
-      <input type="hidden" name="ingredient" value="{{ ingredient.name }}" />
-      <input type="hidden" name="quantity:{{ ingredient.name }}" value="{{ ingredient.quantity or '' }}" />
-      {% endfor %}
-      <button type="submit">{{ shopping_list.name }}</button>
-    </form>
-  </li>
+  <form method="post" action="{{ url_for('review.review_ingredients', list_id=shopping_list.id) }}">
+    {% for ingredient in ingredients %}
+    <input type="hidden" name="ingredient" value="{{ ingredient.name }}" />
+    <input type="hidden" name="quantity:{{ ingredient.name }}" value="{{ ingredient.quantity or '' }}" />
+    {% endfor %}
+    <button type="submit" class="button is-primary">{{ shopping_list.name }}</button>
+  </form>
   {% endfor %}
-</ul>
+</div>
 {% endblock %}
