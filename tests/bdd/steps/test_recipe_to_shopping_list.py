@@ -38,6 +38,19 @@ def kitchenowl_has_shopping_lists(kitchenowl_household, first_list, second_list)
     }
 
 
+@given(
+    parsers.parse(
+        'the shopping list "{list_name}" already has the item "{item_name}" '
+        'with quantity "{quantity}"'
+    )
+)
+def shopping_list_already_has_item(
+    kitchenowl_household, shopping_lists_by_name, list_name, item_name, quantity
+):
+    list_id = shopping_lists_by_name[list_name]
+    kitchenowl_household.server.add_shopping_list_item(list_id, item_name, quantity)
+
+
 def _trigger_recipe_action(running_app, recipe_name, first_ingredient, second_ingredient):
     response = running_app.post(
         "/recipes/action",

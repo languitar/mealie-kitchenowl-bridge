@@ -40,3 +40,17 @@ Feature: Push recipe ingredients to a KitchenOwl shopping list
     And I have selected the shopping list "Groceries"
     When I confirm the ingredient selection
     Then the ingredient "Basil" is added to the "Groceries" shopping list in KitchenOwl with no description
+
+  Scenario: Confirming an ingredient whose quantity unit matches a pre-existing item merges the quantities
+    Given the shopping list "Groceries" already has the item "Tomatoes" with quantity "100 g"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredient "Tomatoes" and quantity "50 g"
+    And I have selected the shopping list "Groceries"
+    When I confirm the ingredient selection
+    Then the ingredient "Tomatoes" is added to the "Groceries" shopping list in KitchenOwl with the description "150g"
+
+  Scenario: Confirming an ingredient whose quantity unit doesn't match a pre-existing item appends a second quantity to its description
+    Given the shopping list "Groceries" already has the item "Basil" with quantity "1 cup"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredient "Basil" and quantity "500 g"
+    And I have selected the shopping list "Groceries"
+    When I confirm the ingredient selection
+    Then the ingredient "Basil" is added to the "Groceries" shopping list in KitchenOwl with the description "1 cup, 500g"

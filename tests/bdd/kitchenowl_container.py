@@ -49,6 +49,14 @@ class KitchenOwlTestServer:
         response.raise_for_status()
         return response.json()["id"]
 
+    def add_shopping_list_item(self, list_id: int, name: str, description: str) -> None:
+        response = requests.post(
+            f"{self.base_url}/api/shoppinglist/{list_id}/add-item-by-name",
+            headers=self._headers(),
+            json={"name": name, "description": description},
+        )
+        response.raise_for_status()
+
     def get_shopping_list_items(self, household_id: int, list_id: int) -> list[dict]:
         response = requests.get(
             f"{self.base_url}/api/household/{household_id}/shoppinglist",

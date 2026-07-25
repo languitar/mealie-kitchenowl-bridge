@@ -20,15 +20,47 @@ class KitchenOwlClient:
         response.raise_for_status()
         return [{"id": item["id"], "name": item["name"]} for item in response.json()]
 
+    def _find_or_create_item_id(self, name: str) -> int:
+        """Resolve a household item's id by exact name, creating it if it doesn't exist yet.
+
+        `/item/search` does fuzzy (Levenshtein) matching, so results are
+        filtered down to an exact, case-insensitive match here.
+        """
+        response = requests.get(
+            f"{self.base_url}/api/household/{self.household_id}/item/search",
+            headers=self._headers(),
+            params={"query": name},
+        )
+        response.raise_for_status()
+        for candidate in response.json():
+            if candidate["name"].casefold() == name.casefold():
+                return candidate["id"]
+
+        response = requests.post(
+            f"{self.base_url}/api/household/{self.household_id}/item",
+            headers=self._headers(),
+            json={"name": name},
+        )
+        response.raise_for_status()
+        return response.json()["id"]
+
     def add_shopping_list_item(
         self, list_id: int, name: str, description: str | None = None
     ) -> None:
-        payload = {"name": name}
-        if description is not None:
-            payload["description"] = description
+        """Add an item to a shopping list, merging its quantity if the item is already there.
+
+        Uses the `recipeitems` endpoint (the same one KitchenOwl's own recipe
+        import feature uses) rather than `add-item-by-name`, since the latter
+        silently ignores the description on an item that's already on the
+        list. `recipeitems` instead merges same-unit quantities (with SI
+        weight/volume conversion) and otherwise appends the new quantity as a
+        second comma-separated entry in the description - KitchenOwl's own
+        `description_merger` logic, not reimplemented here.
+        """
+        item_id = self._find_or_create_item_id(name)
         response = requests.post(
-            f"{self.base_url}/api/shoppinglist/{list_id}/add-item-by-name",
+            f"{self.base_url}/api/shoppinglist/{list_id}/recipeitems",
             headers=self._headers(),
-            json=payload,
+            json={"items": [{"id": item_id, "name": name, "description": description or ""}]},
         )
         response.raise_for_status()
