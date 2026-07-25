@@ -57,6 +57,23 @@ class KitchenOwlTestServer:
         )
         response.raise_for_status()
 
+    def create_item(self, household_id: int, name: str) -> int:
+        response = requests.post(
+            f"{self.base_url}/api/household/{household_id}/item",
+            headers=self._headers(),
+            json={"name": name},
+        )
+        response.raise_for_status()
+        return response.json()["id"]
+
+    def get_items(self, household_id: int) -> list[dict]:
+        response = requests.get(
+            f"{self.base_url}/api/household/{household_id}/item",
+            headers=self._headers(),
+        )
+        response.raise_for_status()
+        return response.json()
+
     def get_shopping_list_items(self, household_id: int, list_id: int) -> list[dict]:
         response = requests.get(
             f"{self.base_url}/api/household/{household_id}/shoppinglist",

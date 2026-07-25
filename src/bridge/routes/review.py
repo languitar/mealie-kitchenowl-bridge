@@ -3,6 +3,9 @@ from werkzeug.datastructures import MultiDict
 
 from bridge.clients.kitchenowl import KitchenOwlClient
 from bridge.ingredients import Ingredient
+from bridge.matching import KitchenOwlItem, find_best_match
+
+_NEW_ITEM_CHOICE = "new"
 
 review_bp = Blueprint("review", __name__)
 
@@ -52,14 +55,25 @@ def review_ingredients(list_id: int):
     """Render the ingredient review screen, all ingredients pre-selected.
 
     Ingredients are again round-tripped through the form (this time as
-    checkboxes) rather than kept server-side.
+    checkboxes) rather than kept server-side. Each ingredient is also
+    matched against the household's existing KitchenOwl items (tolerating
+    plural/inflected forms and minor spelling differences - see
+    `bridge.matching`), pre-selecting that match on the review screen while
+    still letting the user pick a different item or create a new one.
     """
+    client = _kitchenowl_client()
     ingredients = _ingredients_from_form(request.form)
+    items = [KitchenOwlItem(id=item["id"], name=item["name"]) for item in client.get_items()]
+    matches = {
+        ingredient.name: find_best_match(ingredient.name, items) for ingredient in ingredients
+    }
     return render_template(
         "select_ingredients.html",
         list_id=list_id,
-        shopping_list_name=_shopping_list_name(_kitchenowl_client(), list_id),
+        shopping_list_name=_shopping_list_name(client, list_id),
         ingredients=ingredients,
+        items=items,
+        matches=matches,
     )
 
 
@@ -68,7 +82,9 @@ def push_to_shopping_list(list_id: int):
     ingredients = _ingredients_from_form(request.form)
     client = _kitchenowl_client()
     for ingredient in ingredients:
-        client.add_shopping_list_item(list_id, ingredient.name, ingredient.quantity)
+        choice = request.form.get(f"item_choice:{ingredient.name}", _NEW_ITEM_CHOICE)
+        item_id = int(choice) if choice != _NEW_ITEM_CHOICE else None
+        client.add_shopping_list_item(list_id, ingredient.name, ingredient.quantity, item_id)
 
     return render_template(
         "shopping_list_confirmation.html",

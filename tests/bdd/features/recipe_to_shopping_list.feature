@@ -54,3 +54,32 @@ Feature: Push recipe ingredients to a KitchenOwl shopping list
     And I have selected the shopping list "Groceries"
     When I confirm the ingredient selection
     Then the ingredient "Basil" is added to the "Groceries" shopping list in KitchenOwl with the description "1 cup, 500g"
+
+  Scenario: Selecting a shopping list pre-selects a similarly-named existing KitchenOwl item as the match for an ingredient
+    Given KitchenOwl already has an item called "Banana"
+    And a Mealie recipe action is triggered for the recipe "Fruit Salad" with the ingredient "Bananas" and no quantity
+    When I select the shopping list "Groceries"
+    Then I see the ingredient "Bananas" matched to the existing KitchenOwl item "Banana"
+
+  Scenario: Selecting a shopping list defaults to creating a new item for an ingredient with no similarly-named match
+    Given KitchenOwl has no item called "Tomatoes"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredient "Tomatoes" and no quantity
+    When I select the shopping list "Groceries"
+    Then I see the ingredient "Tomatoes" set to create a new KitchenOwl item
+
+  Scenario: Changing the matched KitchenOwl item for an ingredient pushes it as that item instead
+    Given KitchenOwl already has an item called "Banana"
+    And KitchenOwl already has an item called "Plantain"
+    And a Mealie recipe action is triggered for the recipe "Fruit Salad" with the ingredient "Bananas" and no quantity
+    And I have selected the shopping list "Groceries"
+    When I select the existing KitchenOwl item "Plantain" for the ingredient "Bananas"
+    And I confirm the ingredient selection
+    Then the ingredient "Bananas" is added to the "Groceries" shopping list in KitchenOwl as the existing item "Plantain"
+
+  Scenario: Overriding a matched ingredient to create a new item instead pushes it as a new item
+    Given KitchenOwl already has an item called "Banana"
+    And a Mealie recipe action is triggered for the recipe "Fruit Salad" with the ingredient "Bananas" and no quantity
+    And I have selected the shopping list "Groceries"
+    When I choose to create a new KitchenOwl item for the ingredient "Bananas"
+    And I confirm the ingredient selection
+    Then the ingredient "Bananas" is added to the "Groceries" shopping list in KitchenOwl as a new item

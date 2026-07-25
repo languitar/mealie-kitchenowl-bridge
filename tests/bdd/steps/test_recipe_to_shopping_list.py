@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 from werkzeug.datastructures import MultiDict
@@ -49,6 +51,28 @@ def shopping_list_already_has_item(
 ):
     list_id = shopping_lists_by_name[list_name]
     kitchenowl_household.server.add_shopping_list_item(list_id, item_name, quantity)
+
+
+@pytest.fixture
+def kitchenowl_items_by_name() -> dict:
+    return {}
+
+
+@given(
+    parsers.parse('KitchenOwl already has an item called "{item_name}"'),
+    target_fixture="kitchenowl_items_by_name",
+)
+def kitchenowl_has_item(kitchenowl_household, kitchenowl_items_by_name, item_name):
+    kitchenowl_items_by_name[item_name] = kitchenowl_household.server.create_item(
+        kitchenowl_household.id, item_name
+    )
+    return kitchenowl_items_by_name
+
+
+@given(parsers.parse('KitchenOwl has no item called "{item_name}"'))
+def kitchenowl_has_no_item(kitchenowl_household, item_name):
+    items = kitchenowl_household.server.get_items(kitchenowl_household.id)
+    assert not any(item["name"].casefold() == item_name.casefold() for item in items)
 
 
 def _trigger_recipe_action(running_app, recipe_name, first_ingredient, second_ingredient):
@@ -156,14 +180,32 @@ def _ingredients_form_data(ingredients) -> MultiDict:
     return data
 
 
+def _selected_item_choice(body: str, ingredient_name: str) -> str:
+    """Read the pre-selected `item_choice:<name>` option out of the rendered review screen."""
+    select_match = re.search(
+        rf'<select name="item_choice:{re.escape(ingredient_name)}">(.*?)</select>', body, re.DOTALL
+    )
+    assert select_match, f"no item_choice select rendered for {ingredient_name!r}"
+    option_match = re.search(r'value="([^"]*)"\s*selected', select_match.group(1))
+    assert option_match, f"no selected option rendered for {ingredient_name!r}"
+    return option_match.group(1)
+
+
 def _select_shopping_list(running_app, triggered, shopping_lists_by_name, list_name):
     list_id = shopping_lists_by_name[list_name]
     response = running_app.post(
         f"/shopping-lists/{list_id}",
         data=_ingredients_form_data(triggered["ingredients"]),
     )
+    body = response.get_data(as_text=True)
     ingredients = {i["name"]: i["quantity"] for i in triggered["ingredients"]}
-    return {"response": response, "list_id": list_id, "ingredients": ingredients}
+    item_choices = {name: _selected_item_choice(body, name) for name in ingredients}
+    return {
+        "response": response,
+        "list_id": list_id,
+        "ingredients": ingredients,
+        "item_choices": item_choices,
+    }
 
 
 @given(parsers.parse('I have selected the shopping list "{list_name}"'), target_fixture="selection")
@@ -183,9 +225,50 @@ def see_ingredients_pre_selected(selection, first_ingredient, second_ingredient)
         assert f'value="{ingredient}" checked' in body
 
 
+@then(
+    parsers.parse(
+        'I see the ingredient "{ingredient}" matched to the existing KitchenOwl item "{item_name}"'
+    )
+)
+def see_ingredient_matched(selection, kitchenowl_items_by_name, ingredient, item_name):
+    body = selection["response"].get_data(as_text=True)
+    assert _selected_item_choice(body, ingredient) == str(kitchenowl_items_by_name[item_name])
+
+
+@then(parsers.parse('I see the ingredient "{ingredient}" set to create a new KitchenOwl item'))
+def see_ingredient_set_to_create_new(selection, ingredient):
+    body = selection["response"].get_data(as_text=True)
+    assert _selected_item_choice(body, ingredient) == "new"
+
+
 @when(parsers.parse('I deselect the ingredient "{ingredient}"'), target_fixture="selection")
 def deselect_ingredient(selection, ingredient):
     selection["ingredients"].pop(ingredient, None)
+    return selection
+
+
+@when(
+    parsers.parse(
+        'I select the existing KitchenOwl item "{item_name}" for the ingredient '
+        '"{ingredient_name}"'
+    ),
+    target_fixture="selection",
+)
+def select_existing_item_for_ingredient(
+    selection, kitchenowl_items_by_name, item_name, ingredient_name
+):
+    selection["item_choices"][ingredient_name] = str(kitchenowl_items_by_name[item_name])
+    return selection
+
+
+@when(
+    parsers.parse(
+        'I choose to create a new KitchenOwl item for the ingredient "{ingredient_name}"'
+    ),
+    target_fixture="selection",
+)
+def choose_new_item_for_ingredient(selection, ingredient_name):
+    selection["item_choices"][ingredient_name] = "new"
     return selection
 
 
@@ -194,9 +277,12 @@ def confirm_ingredient_selection(running_app, selection):
     ingredients = [
         {"name": name, "quantity": quantity} for name, quantity in selection["ingredients"].items()
     ]
+    data = _ingredients_form_data(ingredients)
+    for name in selection["ingredients"]:
+        data.add(f"item_choice:{name}", selection["item_choices"].get(name, "new"))
     return running_app.post(
         f"/shopping-lists/{selection['list_id']}/confirm",
-        data=_ingredients_form_data(ingredients),
+        data=data,
     )
 
 
@@ -265,3 +351,38 @@ def ingredient_added_without_description(
     assert push_response.status_code == 200
     items = _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name)
     assert not items[ingredient].get("description")
+
+
+@then(
+    parsers.parse(
+        'the ingredient "{ingredient}" is added to the "{list_name}" shopping list in KitchenOwl '
+        'as the existing item "{item_name}"'
+    )
+)
+def ingredient_added_as_existing_item(
+    push_response,
+    kitchenowl_household,
+    shopping_lists_by_name,
+    kitchenowl_items_by_name,
+    list_name,
+    ingredient,
+    item_name,
+):
+    assert push_response.status_code == 200
+    items = _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name)
+    assert ingredient not in items
+    assert items[item_name]["id"] == kitchenowl_items_by_name[item_name]
+
+
+@then(
+    parsers.parse(
+        'the ingredient "{ingredient}" is added to the "{list_name}" shopping list in KitchenOwl '
+        "as a new item"
+    )
+)
+def ingredient_added_as_new_item(
+    push_response, kitchenowl_household, shopping_lists_by_name, list_name, ingredient
+):
+    assert push_response.status_code == 200
+    items = _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name)
+    assert ingredient in items
