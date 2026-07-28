@@ -59,3 +59,22 @@ rather than passing them per invocation.
 ```bash
 docker compose up --build
 ```
+
+## Commits
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
+`<type>: <short, imperative summary>`, e.g. `feat: add fuzzy item matching` or
+`fix: handle missing recipe ingredients`. No scopes are used in this repo. Common
+types:
+
+- `feat` - new user-facing behavior
+- `fix` - a bug fix
+- `docs` - documentation only (README, AGENTS.md, comments)
+- `test` - test-only changes (no application code)
+- `refactor` - code change that doesn't alter behavior
+- `build` - build system, dependencies, tooling
+- `chore` - everything else (repo housekeeping, CI config, etc.)
+
+Add a body when the *why* isn't obvious from the summary or diff alone - see the
+existing `git log` for examples. Keep the summary line short; put details in the
+body.
