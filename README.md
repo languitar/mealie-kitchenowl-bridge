@@ -17,6 +17,31 @@ cp .env.example .env  # then fill in real Mealie/KitchenOwl URLs and tokens
 uv run playwright install chromium  # only needed for browser-based tests
 ```
 
+## Configuration
+
+All configuration is via environment variables (see `.env.example`):
+
+- `MEALIE_URL` / `MEALIE_API_TOKEN` - not used yet (the webhook trigger gets
+  everything it needs from the recipe payload Mealie POSTs), reserved for a future
+  feature that needs to call back into Mealie's own API.
+- `KITCHENOWL_URL` / `KITCHENOWL_API_TOKEN` / `KITCHENOWL_HOUSEHOLD_ID` - a single
+  shared KitchenOwl household and API token. There's no multi-household or
+  per-user KitchenOwl access - everyone who uses the bridge sees and pushes to the
+  same household.
+- `WEBHOOK_TOKEN` - required; the app refuses to start without it. A shared secret
+  that must be sent as a `token` query parameter on Mealie's webhook call (Mealie's
+  "Post"-type recipe action only supports a configurable target URL, not custom
+  headers). Configure Mealie's recipe action URL as:
+  ```
+  https://bridge.example.com/recipes/action?token=<WEBHOOK_TOKEN>
+  ```
+
+There's no login of any kind on the ingredient review/confirm screens - anyone who
+can reach the bridge can use them once past the webhook token. Only the webhook
+trigger itself is authenticated. If that matters for your deployment, put your own
+access control (e.g. a reverse proxy) in front of the bridge. There's also no
+database - nothing persists across requests or restarts.
+
 ## Running
 
 ```bash
@@ -33,10 +58,22 @@ uv run pytest -m browser   # browser-driven BDD scenarios (needs `playwright ins
 uv run ruff check .
 ```
 
-The default suite needs a working local Docker daemon: scenarios that exercise
-KitchenOwl run against a real instance in a container (started automatically) rather
-than a mock, so tests can't drift from KitchenOwl's actual API behavior - see
-AGENTS.md.
+Unit and integration tests are plain pytest with no external services. Acceptance
+(BDD) scenarios run through a real Flask test client; how the two external services
+are faked differs:
+
+- **Mealie** is stubbed with `requests_mock` - tests never call a live Mealie.
+- **KitchenOwl** scenarios run against a **real KitchenOwl instance in a
+  container** instead of a mock, so tests can't drift from what KitchenOwl actually
+  does. This is why the default suite needs a working local Docker (or Podman, see
+  below) daemon - the KitchenOwl image is pulled and started automatically, no
+  manual `docker compose up` needed for tests.
+
+Some behavior (real DOM rendering, HTMX partial swaps, client-side JS) can only be
+verified through an actual browser rather than the Flask test client. Those
+scenarios are tagged `@browser` and excluded from the default `uv run pytest` run
+since they need Chromium installed; run them explicitly with
+`uv run pytest -m browser` after `uv run playwright install chromium`.
 
 ### Using Podman instead of Docker
 
@@ -59,6 +96,21 @@ rather than passing them per invocation.
 ```bash
 docker compose up --build
 ```
+
+## Architecture & conventions
+
+- `src/` layout, package name `bridge`. `uv.lock` pins all dependencies -
+  regenerate it with `uv lock` after changing dependencies, and commit the updated
+  lockfile.
+- Flask blueprints per concern, registered in `src/bridge/app.py`.
+- HTMX is vendored at `src/bridge/static/htmx.min.js` - no CDN dependency.
+- UI design follows KitchenOwl's own UI (layout, styling, interaction patterns)
+  rather than Mealie's or an independent style, since the bridge's screens are the
+  step just before pushing onto a KitchenOwl list and should feel like part of that
+  experience.
+
+See [AGENTS.md](AGENTS.md) for how new features get built (the BDD-driven
+workflow) and for the reasoning behind decisions deliberately deferred so far.
 
 ## Commits
 

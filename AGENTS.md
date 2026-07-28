@@ -32,6 +32,16 @@ Every new feature request is turned into an acceptance test *before* it's implem
    Check `tests/bdd/steps/common.py` first for reusable `Given`/`When`/`Then` steps
    (e.g. `"the bridge is running"`). Only add a new step there once a *second*
    scenario needs it verbatim — keep single-use steps local to their own module.
+   Acceptance scenarios run against Flask's test client (`client`/`running_app`
+   fixtures). If a scenario touches KitchenOwl, point its module's `config` fixture
+   at the `kitchenowl_config` fixture (`tests/bdd/conftest.py`; see
+   `tests/bdd/steps/test_recipe_to_shopping_list.py` for the pattern) rather than
+   touching the shared one in `tests/conftest.py`, so scenarios that don't need
+   KitchenOwl (e.g. `health_check`, `home_page`) stay fast. Tag browser-only
+   scenarios `@browser` and write their steps against the `page`/`live_server`
+   fixtures — see `tests/bdd/features/home_page.feature` /
+   `tests/bdd/steps/test_home_page.py` for the pattern. See README.md's Testing
+   section for how Mealie/KitchenOwl are faked and how to run each tier.
 3. **Implement the application code** under `src/bridge/` until the scenario passes.
    Wire real logic into the existing placeholder blueprints/clients rather than
    creating new top-level modules where an obvious one already exists:
@@ -42,97 +52,37 @@ Every new feature request is turned into an acceptance test *before* it's implem
    ingredient parsing/normalization, quantity/unit conversion, API client error
    handling, edge cases. These go in `tests/unit/` (pure logic, no I/O) or
    `tests/integration/` (a client wrapper against a stubbed HTTP server/`requests_mock`,
-   without going through Flask).
-
-Acceptance scenarios default to Flask's test client (`app.test_client()`, via the
-`client`/`running_app` fixtures). How the KitchenOwl/Mealie side is faked differs:
-
-- **Mealie**: stub its HTTP calls with `requests_mock` (available automatically as a
-  fixture). Never hit the live service in tests.
-- **KitchenOwl**: run scenarios against a **real KitchenOwl instance in a container**
-  instead of mocking it - hand-written stubs of its API can quietly drift from what
-  it actually does, giving false confidence. Use the `kitchenowl_household` fixture
-  (`tests/bdd/conftest.py`, backed by `tests/bdd/kitchenowl_container.py`): it starts
-  one container per test *session* (`kitchenowl_server`, session-scoped - only paid by
-  tests that request it) and gives each test its own household for isolation
-  (`kitchenowl_household`, function-scoped). Point a test module's `config` fixture at
-  it by locally overriding `config` to return the `kitchenowl_config` fixture
-  (`tests/bdd/conftest.py`; see `tests/bdd/steps/test_recipe_to_shopping_list.py` for
-  the pattern) rather than touching the shared one in `tests/conftest.py`, so
-  scenarios that don't touch KitchenOwl (e.g. `health_check`, `home_page`) stay fast.
-  `requests_mock` is still the right tool for KitchenOwl-client error-path/edge-case
-  tests at the `tests/unit`/`tests/integration` tier (item 4 above) - simulating a 500
-  response is impractical against a real instance.
-
-Running the full default suite therefore needs a working local Docker daemon (the
-KitchenOwl image is pulled/started automatically, no manual `docker compose up`
-needed for tests).
-
-### Browser-driven scenarios
-
-Some behavior — real DOM rendering, HTMX partial swaps, client-side JS — can't be
-verified through the Flask test client and needs an actual browser. For that, tag the
-`Scenario` with `@browser` (pytest-bdd maps Gherkin tags to pytest markers
-automatically) and write its steps against the `page` fixture (from
-`pytest-playwright`) and the `live_server` fixture (serves the real `app` on a real
-port — see `tests/bdd/conftest.py`; this overrides `pytest-flask`'s own `live_server`,
-which is broken under Python 3.14's `forkserver` multiprocessing default). See
-`tests/bdd/features/home_page.feature` / `tests/bdd/steps/test_home_page.py` for the
-pattern.
-
-Default to the fast Flask-test-client tier — reach for `@browser` only when the
-behavior genuinely requires a real browser. Browser scenarios are excluded from the
-default `uv run pytest` (see `addopts` in `pyproject.toml`) since they need Chromium
-installed; run them explicitly:
-
-```bash
-uv run playwright install chromium  # one-time setup
-uv run pytest -m browser
-```
+   without going through Flask) — `requests_mock` is the right tool even for
+   KitchenOwl-client error paths here, since simulating e.g. a 500 response is
+   impractical against the real instance used at the BDD tier.
 
 ## Deferred decisions
 
 These were explicitly deferred when the skeleton was created — don't assume they're
-settled, and revisit them as their own feature requests when they become relevant:
+settled, and revisit them as their own feature requests when they become relevant.
+See README.md for the current concrete configuration and behavior; this section
+records *why* each thing is the way it is and *when* it's worth reconsidering:
 
-- **Mealie trigger shape**: resolved for the recipe-to-shopping-list feature. Mealie
-  is configured with a "Post"-type recipe action, which POSTs the full recipe JSON
-  (including `recipeIngredient` with pre-formatted `display` strings) to
-  `routes/webhook.py`'s `/recipes/action` endpoint - so the bridge never calls back
-  into Mealie's own API for this feature, and `clients/mealie.py` stays an unused
-  placeholder. Revisit if a future feature needs data Mealie doesn't include in that
-  payload (at which point a real Mealie API client/token would be needed).
-- **Auth**: `/recipes/action` (the Mealie webhook trigger) requires a shared secret
-  (`WEBHOOK_TOKEN`, see `.env.example`), sent as a `token` query parameter rather than
-  a header - Mealie's "Post"-type recipe action can only be configured with a target
-  URL, not custom headers. The app refuses to start (`Config.from_env()` raises) if
-  `WEBHOOK_TOKEN` isn't set, rather than silently running with auth disabled. No other
-  route is protected - the ingredient review/confirm screens remain fully open to
-  anyone who can reach them. A single shared Mealie API token and a single shared
-  KitchenOwl API token are configured via environment variables the same way. Per-user
-  login (an identity provider in front of the bridge's own UI, plus per-user
-  KitchenOwl access) was investigated and deliberately dropped: KitchenOwl's OIDC
-  login flow can't be driven server-side by a third party (its redirect URI is
-  hardcoded to KitchenOwl's own frontend, so an external caller can't capture the
-  resulting code), and KitchenOwl has no admin API to resolve which household an
-  arbitrary authenticated user belongs to. Revisit as its own feature request if that
-  trade-off stops being acceptable.
-- **Persistence**: none. No database. If a feature needs to hold state across
+- **Mealie trigger shape**: resolved for the recipe-to-shopping-list feature —
+  Mealie POSTs the full recipe JSON directly to `/recipes/action`, so the bridge
+  never calls back into Mealie's own API, and `clients/mealie.py` stays an unused
+  placeholder. Revisit if a future feature needs data Mealie doesn't include in
+  that payload (at which point a real Mealie API client/token would be needed).
+- **Auth**: the webhook trigger is authenticated (see README's Configuration
+  section), but per-user login (an identity provider in front of the bridge's own
+  UI, plus per-user KitchenOwl access) was investigated and deliberately dropped:
+  KitchenOwl's OIDC login flow can't be driven server-side by a third party (its
+  redirect URI is hardcoded to KitchenOwl's own frontend, so an external caller
+  can't capture the resulting code), and KitchenOwl has no admin API to resolve
+  which household an arbitrary authenticated user belongs to. Revisit as its own
+  feature request if that trade-off stops being acceptable.
+- **Persistence**: none (see README). If a feature needs to hold state across
   requests (e.g. a pending ingredient review), keep it in-process/in-memory until a
   feature request specifically calls for durability, then add persistence at that
   point.
 
 ## Conventions
 
-- `src/` layout, package name `bridge`, dependencies managed with
-  [uv](https://docs.astral.sh/uv/) (`uv sync` installs both runtime deps and the
-  `dev` dependency group; `uv.lock` pins everything — regenerate it with `uv lock`
-  after changing dependencies, and commit the updated lockfile).
-- Flask blueprints per concern, registered in `src/bridge/app.py`.
-- HTMX is vendored at `src/bridge/static/htmx.min.js` — no CDN dependency.
-- UI design should follow KitchenOwl's own UI (layout, styling, interaction patterns)
-  rather than Mealie's or an independent style, since the bridge's screens are the
-  step just before pushing onto a KitchenOwl list and should feel like part of that
-  experience.
-- Lint with `uv run ruff check .`.
-- Run tests with `uv run pytest` (runs both BDD and plain unit/integration tests).
+See README.md's "Architecture & conventions" section (package layout, blueprint
+structure, HTMX vendoring, UI design direction) and "Commits" section (Conventional
+Commits format used in this repo).
