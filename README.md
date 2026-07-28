@@ -21,9 +21,6 @@ uv run playwright install chromium  # only needed for browser-based tests
 
 All configuration is via environment variables (see `.env.example`):
 
-- `MEALIE_URL` / `MEALIE_API_TOKEN` - not used yet (the webhook trigger gets
-  everything it needs from the recipe payload Mealie POSTs), reserved for a future
-  feature that needs to call back into Mealie's own API.
 - `KITCHENOWL_URL` / `KITCHENOWL_API_TOKEN` / `KITCHENOWL_HOUSEHOLD_ID` - a single
   shared KitchenOwl household and API token. There's no multi-household or
   per-user KitchenOwl access - everyone who uses the bridge sees and pushes to the

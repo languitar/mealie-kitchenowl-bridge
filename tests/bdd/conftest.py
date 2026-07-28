@@ -87,8 +87,6 @@ def kitchenowl_config(config, kitchenowl_household) -> Config:
     see AGENTS.md's BDD workflow notes on testing against a real KitchenOwl.
     """
     return Config(
-        mealie_url=config.mealie_url,
-        mealie_api_token=config.mealie_api_token,
         kitchenowl_url=kitchenowl_household.server.base_url,
         kitchenowl_api_token=kitchenowl_household.server.admin_token,
         kitchenowl_household_id=str(kitchenowl_household.id),
