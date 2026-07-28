@@ -38,6 +38,22 @@ KitchenOwl run against a real instance in a container (started automatically) ra
 than a mock, so tests can't drift from KitchenOwl's actual API behavior - see
 AGENTS.md.
 
+### Using Podman instead of Docker
+
+`testcontainers` (via the `docker` Python SDK) also works against a rootless Podman
+socket - point `DOCKER_HOST` at it and disable `ryuk` (testcontainers' cleanup
+sidecar, which commonly hits privilege issues under rootless Podman):
+
+```bash
+systemctl --user start podman.socket  # if not already running
+DOCKER_HOST=unix:///run/user/$(id -u)/podman/podman.sock \
+  TESTCONTAINERS_RYUK_DISABLED=true \
+  uv run pytest
+```
+
+Export both variables in your shell profile if you want this to be the default
+rather than passing them per invocation.
+
 ## Docker
 
 ```bash
