@@ -1,5 +1,11 @@
 # Mealie ↔ KitchenOwl Bridge
 
+> **Disclaimer**: this project is mostly vibe-coded - it's a testbed for exploring
+> agentic coding practices (BDD-driven feature workflows, AI-agent-assisted
+> development) as much as it is a real tool. Expect the usual consequences: review
+> anything here carefully, especially around security and data-handling, before
+> trusting it with real accounts or real data.
+
 Bridges a Mealie recipe action to a KitchenOwl shopping list: trigger from a recipe
 in Mealie, review the ingredients in a small HTMX UI, and push them onto a
 KitchenOwl shopping list.
