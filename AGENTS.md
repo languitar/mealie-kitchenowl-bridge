@@ -56,8 +56,9 @@ Acceptance scenarios default to Flask's test client (`app.test_client()`, via th
   one container per test *session* (`kitchenowl_server`, session-scoped - only paid by
   tests that request it) and gives each test its own household for isolation
   (`kitchenowl_household`, function-scoped). Point a test module's `config` fixture at
-  it by overriding `config` locally (see `tests/bdd/steps/test_recipe_to_shopping_list.py`
-  for the pattern) rather than touching the shared one in `tests/conftest.py`, so
+  it by locally overriding `config` to return the `kitchenowl_config` fixture
+  (`tests/bdd/conftest.py`; see `tests/bdd/steps/test_recipe_to_shopping_list.py` for
+  the pattern) rather than touching the shared one in `tests/conftest.py`, so
   scenarios that don't touch KitchenOwl (e.g. `health_check`, `home_page`) stay fast.
   `requests_mock` is still the right tool for KitchenOwl-client error-path/edge-case
   tests at the `tests/unit`/`tests/integration` tier (item 4 above) - simulating a 500
@@ -101,11 +102,21 @@ settled, and revisit them as their own feature requests when they become relevan
   into Mealie's own API for this feature, and `clients/mealie.py` stays an unused
   placeholder. Revisit if a future feature needs data Mealie doesn't include in that
   payload (at which point a real Mealie API client/token would be needed).
-- **Auth**: none. A single shared Mealie API token and a single shared KitchenOwl API
-  token are configured via environment variables (see `.env.example`). No login
-  screen, no per-user credentials. Multi-user auth (e.g. an identity provider such as
-  Keycloak in front of the bridge's own UI) is a possible future feature, not assumed
-  by anything currently built.
+- **Auth**: `/recipes/action` (the Mealie webhook trigger) requires a shared secret
+  (`WEBHOOK_TOKEN`, see `.env.example`), sent as a `token` query parameter rather than
+  a header - Mealie's "Post"-type recipe action can only be configured with a target
+  URL, not custom headers. The app refuses to start (`Config.from_env()` raises) if
+  `WEBHOOK_TOKEN` isn't set, rather than silently running with auth disabled. No other
+  route is protected - the ingredient review/confirm screens remain fully open to
+  anyone who can reach them. A single shared Mealie API token and a single shared
+  KitchenOwl API token are configured via environment variables the same way. Per-user
+  login (an identity provider in front of the bridge's own UI, plus per-user
+  KitchenOwl access) was investigated and deliberately dropped: KitchenOwl's OIDC
+  login flow can't be driven server-side by a third party (its redirect URI is
+  hardcoded to KitchenOwl's own frontend, so an external caller can't capture the
+  resulting code), and KitchenOwl has no admin API to resolve which household an
+  arbitrary authenticated user belongs to. Revisit as its own feature request if that
+  trade-off stops being acceptable.
 - **Persistence**: none. No database. If a feature needs to hold state across
   requests (e.g. a pending ingredient review), keep it in-process/in-memory until a
   feature request specifically calls for durability, then add persistence at that

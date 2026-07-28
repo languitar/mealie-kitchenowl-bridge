@@ -13,6 +13,8 @@ from dataclasses import dataclass
 import pytest
 from werkzeug.serving import make_server
 
+from bridge.config import Config
+
 from .kitchenowl_container import KitchenOwlTestServer, start_kitchenowl_container
 
 
@@ -74,3 +76,21 @@ def kitchenowl_household(kitchenowl_server):
     """
     household_id = kitchenowl_server.create_household("Bridge Test Household")
     return KitchenOwlHousehold(server=kitchenowl_server, id=household_id)
+
+
+@pytest.fixture
+def kitchenowl_config(config, kitchenowl_household) -> Config:
+    """`config` with KitchenOwl connection details pointed at the real per-test household.
+
+    Opt-in (not a blanket override of `config`) so scenarios that don't need
+    KitchenOwl (health_check, home_page) don't pay the container startup cost -
+    see AGENTS.md's BDD workflow notes on testing against a real KitchenOwl.
+    """
+    return Config(
+        mealie_url=config.mealie_url,
+        mealie_api_token=config.mealie_api_token,
+        kitchenowl_url=kitchenowl_household.server.base_url,
+        kitchenowl_api_token=kitchenowl_household.server.admin_token,
+        kitchenowl_household_id=str(kitchenowl_household.id),
+        webhook_token=config.webhook_token,
+    )

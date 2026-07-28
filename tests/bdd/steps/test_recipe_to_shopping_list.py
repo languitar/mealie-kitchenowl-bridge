@@ -4,28 +4,14 @@ import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 from werkzeug.datastructures import MultiDict
 
-from bridge.config import Config
-
 from .common import *  # noqa: F401,F403
 
 scenarios("../features/recipe_to_shopping_list.feature")
 
 
 @pytest.fixture
-def config(config, kitchenowl_household):
-    """Point KitchenOwl connection details at the real per-test household.
-
-    Overrides `tests/conftest.py`'s `config` fixture, re-requesting it by the
-    same name to keep the (unused, fake) Mealie values as-is - see
-    AGENTS.md's BDD workflow notes on testing against a real KitchenOwl.
-    """
-    return Config(
-        mealie_url=config.mealie_url,
-        mealie_api_token=config.mealie_api_token,
-        kitchenowl_url=kitchenowl_household.server.base_url,
-        kitchenowl_api_token=kitchenowl_household.server.admin_token,
-        kitchenowl_household_id=str(kitchenowl_household.id),
-    )
+def config(kitchenowl_config):
+    return kitchenowl_config
 
 
 @given(
@@ -75,38 +61,6 @@ def kitchenowl_has_no_item(kitchenowl_household, item_name):
     assert not any(item["name"].casefold() == item_name.casefold() for item in items)
 
 
-def _trigger_recipe_action(running_app, recipe_name, first_ingredient, second_ingredient):
-    response = running_app.post(
-        "/recipes/action",
-        json={
-            "name": recipe_name,
-            "recipeIngredient": [
-                {"display": first_ingredient},
-                {"display": second_ingredient},
-            ],
-        },
-    )
-    return {
-        "response": response,
-        "ingredients": [
-            {"name": first_ingredient, "quantity": None},
-            {"name": second_ingredient, "quantity": None},
-        ],
-    }
-
-
-_TRIGGER_TEXT = (
-    'a Mealie recipe action is triggered for the recipe "{recipe_name}" '
-    'with the ingredients "{first_ingredient}" and "{second_ingredient}"'
-)
-
-
-@given(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
-@when(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
-def recipe_action_triggered(running_app, recipe_name, first_ingredient, second_ingredient):
-    return _trigger_recipe_action(running_app, recipe_name, first_ingredient, second_ingredient)
-
-
 def _split_quantity(quantity: str) -> tuple[float, str | None]:
     amount, _, unit_name = quantity.partition(" ")
     return float(amount), unit_name or None
@@ -119,10 +73,13 @@ def _split_quantity(quantity: str) -> tuple[float, str | None]:
     ),
     target_fixture="triggered",
 )
-def recipe_action_triggered_with_quantity(running_app, recipe_name, ingredient_name, quantity):
+def recipe_action_triggered_with_quantity(
+    running_app, webhook_token, recipe_name, ingredient_name, quantity
+):
     amount, unit_name = _split_quantity(quantity)
     response = running_app.post(
         "/recipes/action",
+        query_string={"token": webhook_token},
         json={
             "name": recipe_name,
             "recipeIngredient": [
@@ -145,9 +102,12 @@ def recipe_action_triggered_with_quantity(running_app, recipe_name, ingredient_n
     ),
     target_fixture="triggered",
 )
-def recipe_action_triggered_without_quantity(running_app, recipe_name, ingredient_name):
+def recipe_action_triggered_without_quantity(
+    running_app, webhook_token, recipe_name, ingredient_name
+):
     response = running_app.post(
         "/recipes/action",
+        query_string={"token": webhook_token},
         json={
             "name": recipe_name,
             "recipeIngredient": [
