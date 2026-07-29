@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "bridge"
-version = "0.1.0"
+version = "1.0.0"
 description = "Bridge that pushes Mealie recipe ingredients onto a KitchenOwl shopping list"
 requires-python = ">=3.14"
 dependencies = [
