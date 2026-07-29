@@ -23,10 +23,31 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     outputs:
       tags: ${{ steps.meta.outputs.tags }}
+      ref: ${{ steps.ref.outputs.ref }}
     steps:
+      # For a "Release" run, workflow_run.head_sha is the commit Release was
+      # *triggered for* - i.e. the pre-release commit, not the one
+      # semantic-release actually tags. semantic-release pushes a new commit
+      # (version bump) plus the release tag on top of that as part of its
+      # own run, so by the time Release finishes, main's tip has moved past
+      # head_sha. Checking out head_sha for a release therefore lands on an
+      # untagged commit and silently produces no version tag at all. `main`
+      # is what actually carries the tag once Release has completed. This
+      # doesn't apply to "Test" runs - nothing rewrites main between Test
+      # finishing and this job running, so head_sha is the right commit
+      # there.
+      - name: Determine commit to build
+        id: ref
+        run: |
+          if [ "${{ github.event.workflow_run.name }}" = "Release" ]; then
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ steps.ref.outputs.ref }}
           # Full history + tags: needed for metadata-action's `context: git`
           # (below) to see whether HEAD is exactly on a release tag.
           fetch-depth: 0
@@ -68,6 +89,6 @@ jobs:
       contents: read
       packages: write
     with:
-      ref: ${{ github.event.workflow_run.head_sha }}
+      ref: ${{ needs.metadata.outputs.ref }}
       tags: ${{ needs.metadata.outputs.tags }}
       push: true
