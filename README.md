@@ -133,3 +133,16 @@ types:
 Add a body when the *why* isn't obvious from the summary or diff alone - see the
 existing `git log` for examples. Keep the summary line short; put details in the
 body.
+
+Pull requests are checked against this format with
+[commitlint](https://commitlint.js.org/) (`commitlint.config.js`) in CI.
+
+## Releases
+
+Merges to `main` are released automatically with
+[semantic-release](https://semantic-release.gitbook.io/) (`.releaserc.json`),
+based on the conventional-commit types since the last release: `fix` bumps a
+patch version, `feat` bumps a minor version, and a `BREAKING CHANGE:` footer
+bumps a major version. A release updates `pyproject.toml` and `uv.lock` and
+publishes a GitHub release with generated notes - all pushed back to `main` by
+the workflow, so no manual version bumping or tagging is needed.
