@@ -1,0 +1,73 @@
+# Publishes the OCI image to GHCR for two cases: a release (version tag +
+# latest) and every main commit that passes tests (dev tag + short sha +
+# build date). Triggered off *other workflows completing* rather than a
+# plain `push` trigger, because the commit/tag that would normally trigger
+# this is pushed by release.yml using the default GITHUB_TOKEN - and GitHub
+# refuses to let GITHUB_TOKEN-authored pushes trigger further workflows (a
+# hardcoded recursion guard, no repo setting overrides it). workflow_run is
+# the standard way around that: react to the *workflow run* finishing
+# instead of the push it made. Listening to both "Test" and "Release" lets
+# one job distinguish "just a green main commit" from "a release happened"
+# via github.event.workflow_run.name.
+name: Publish image
+
+on:
+  workflow_run:
+    workflows: ["Test", "Release"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          # Full history + tags: needed for metadata-action's `context: git`
+          # (below) to see whether HEAD is exactly on a release tag.
+          fetch-depth: 0
+
+      # `context: git` makes this inspect the actual checked-out commit
+      # instead of the triggering GitHub event - required here because for
+      # a workflow_run-triggered job, the event's own ref/sha just describe
+      # the workflow run, not the release tag (if any) sitting on HEAD.
+      #
+      # The `enable=` flags key off which workflow completed, since that's
+      # a plain, reliable GitHub-context value - unlike branch/tag
+      # detection under `context: git`, which only needs to work here for
+      # tags (verified against metadata-action's source), not branches.
+      #
+      # `latest` is handled by metadata-action's default `latest=auto`
+      # flavor: it only appears alongside a `type=semver` match, i.e. only
+      # when this run is for a real release - no separate condition needed.
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          context: git
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}},enable=${{ github.event.workflow_run.name == 'Release' }}
+            type=raw,value=dev,enable=${{ github.event.workflow_run.name == 'Test' }}
+            type=sha,format=short,enable=${{ github.event.workflow_run.name == 'Test' }}
+            type=raw,value={{date 'YYYY-MM-DD'}},enable=${{ github.event.workflow_run.name == 'Test' }}
+
+  publish:
+    needs: metadata
+    # A completed "Release" run doesn't guarantee a release was actually
+    # cut - semantic-release no-ops cleanly when there's nothing to
+    # release, in which case the metadata job above emits no tags at all.
+    # Skip publishing entirely rather than repush an unchanged image.
+    if: ${{ needs.metadata.outputs.tags != '' }}
+    uses: ./.github/workflows/build-image.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      ref: ${{ github.event.workflow_run.head_sha }}
+      tags: ${{ needs.metadata.outputs.tags }}
+      push: true

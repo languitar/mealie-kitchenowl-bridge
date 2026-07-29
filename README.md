@@ -100,6 +100,12 @@ rather than passing them per invocation.
 docker compose up --build
 ```
 
+Released versions are also published as prebuilt images to
+`ghcr.io/languitar/mealie-kitchenowl-bridge`, tagged with the released
+version (e.g. `v1.2.3`) and `latest`. Every commit on `main` that passes CI is
+additionally published under `dev`, its short commit hash, and the build date
+(e.g. `2026-07-29`), for testing unreleased changes.
+
 ## Architecture & conventions
 
 - `src/` layout, package name `bridge`. `uv.lock` pins all dependencies -
