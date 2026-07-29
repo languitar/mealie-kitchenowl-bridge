@@ -100,6 +100,12 @@ rather than passing them per invocation.
 docker compose up --build
 ```
 
+Released versions are also published as prebuilt images to
+`ghcr.io/languitar/mealie-kitchenowl-bridge`, tagged with the released
+version (e.g. `v1.2.3`) and `latest`. Every commit on `main` that passes CI is
+additionally published under `dev`, its short commit hash, and the build date
+(e.g. `2026-07-29`), for testing unreleased changes.
+
 ## Architecture & conventions
 
 - `src/` layout, package name `bridge`. `uv.lock` pins all dependencies -
@@ -133,3 +139,16 @@ types:
 Add a body when the *why* isn't obvious from the summary or diff alone - see the
 existing `git log` for examples. Keep the summary line short; put details in the
 body.
+
+Pull requests are checked against this format with
+[commitlint](https://commitlint.js.org/) (`commitlint.config.js`) in CI.
+
+## Releases
+
+Merges to `main` are released automatically with
+[semantic-release](https://semantic-release.gitbook.io/) (`.releaserc.json`),
+based on the conventional-commit types since the last release: `fix` bumps a
+patch version, `feat` bumps a minor version, and a `BREAKING CHANGE:` footer
+bumps a major version. A release updates `pyproject.toml` and `uv.lock` and
+publishes a GitHub release with generated notes - all pushed back to `main` by
+the workflow, so no manual version bumping or tagging is needed.

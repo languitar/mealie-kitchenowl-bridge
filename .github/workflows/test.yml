@@ -6,6 +6,16 @@ on:
   pull_request:
 
 jobs:
+  lint-commits:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: wagoid/commitlint-github-action@v6
+
   test:
     runs-on: ubuntu-latest
     steps:
@@ -24,3 +34,11 @@ jobs:
 
       - name: Test
         run: uv run pytest
+
+  # Build-only (push: false by default), so a broken Dockerfile shows up as
+  # a PR status check instead of only being discovered after merge, once
+  # publish-image.yml tries to build the same source for real.
+  build-image:
+    uses: ./.github/workflows/build-image.yml
+    with:
+      ref: ${{ github.sha }}
