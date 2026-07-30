@@ -31,21 +31,15 @@ jobs:
       # (version bump) plus the release tag on top of that as part of its
       # own run, so by the time Release finishes, main's tip has moved past
       # head_sha. Checking out head_sha for a release therefore lands on an
-      # untagged commit and silently produces no version tag at all. This
-      # doesn't apply to "Test" runs - nothing rewrites main between Test
-      # finishing and this job running, so head_sha is the right commit
-      # there.
+      # untagged commit. This doesn't apply to "Test" runs - nothing
+      # rewrites main between Test finishing and this job running, so
+      # head_sha is the right commit there.
       #
       # Resolve main's *sha* via ls-remote rather than checking out the
       # branch name "main" directly: actions/checkout given a branch name
       # checks out a real local branch (`git branch --show-current` reports
-      # "main"), not a detached HEAD. metadata-action's context: git only
-      # runs its tag-lookup logic when HEAD is detached - on a named branch
-      # it takes the branch's own ref instead and never looks for a tag at
-      # all, even if one happens to sit on that exact commit. Learned this
-      # the hard way: an earlier version of this fix used `ref: main`
-      # directly, landed on the right commit, and *still* found no tag for
-      # exactly this reason.
+      # "main"), not a detached HEAD, which matters for the tag lookup
+      # below.
       - name: Determine commit to build
         id: ref
         run: |
@@ -59,34 +53,40 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.ref.outputs.ref }}
-          # Full history + tags: needed for metadata-action's `context: git`
-          # (below) to see whether HEAD is exactly on a release tag.
+          # Full history + tags: needed for `git tag --points-at` below to
+          # see whether HEAD is exactly on a release tag.
           fetch-depth: 0
 
-      # `context: git` makes this inspect the actual checked-out commit
-      # instead of the triggering GitHub event - required here because for
-      # a workflow_run-triggered job, the event's own ref/sha just describe
-      # the workflow run, not the release tag (if any) sitting on HEAD.
-      #
-      # The `enable=` flags key off which workflow completed, since that's
-      # a plain, reliable GitHub-context value - unlike branch/tag
-      # detection under `context: git`, which only needs to work here for
-      # tags (verified against metadata-action's source), not branches.
-      #
-      # `latest` is handled by metadata-action's default `latest=auto`
-      # flavor: it only appears alongside a `type=semver` match, i.e. only
-      # when this run is for a real release - no separate condition needed.
+      # Compute the actual tag values ourselves with plain git rather than
+      # relying on docker/metadata-action's `context: git` auto-detection.
+      # That auto-detection turned out to be unreliable in practice: on a
+      # real release commit it resolved to a malformed, comma-polluted ref
+      # (`refs/tags/v1.0.2, origin/main`) even though the checkout was
+      # correctly detached and on the right commit - a bug in its own
+      # decoration-string parsing on GitHub-hosted runners that didn't
+      # reproduce against a local clone with the same primitives. `git tag
+      # --points-at HEAD` alone was verified repeatedly (locally and against
+      # the actual released commits) to give a clean answer, so that's what
+      # drives the tags below - metadata-action is only used afterwards for
+      # tag-list/label formatting, not for figuring out what to tag.
+      - name: Determine build metadata
+        id: build_meta
+        run: |
+          echo "tag=$(git tag --points-at HEAD | head -1)" >> "$GITHUB_OUTPUT"
+          echo "short_sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
       - name: Extract image metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          context: git
           images: ghcr.io/${{ github.repository }}
           tags: |
-            type=semver,pattern={{version}},enable=${{ github.event.workflow_run.name == 'Release' }}
+            type=raw,value=${{ steps.build_meta.outputs.tag }},enable=${{ steps.build_meta.outputs.tag != '' }}
+            type=raw,value=latest,enable=${{ steps.build_meta.outputs.tag != '' }}
             type=raw,value=dev,enable=${{ github.event.workflow_run.name == 'Test' }}
-            type=sha,format=short,enable=${{ github.event.workflow_run.name == 'Test' }}
-            type=raw,value={{date 'YYYY-MM-DD'}},enable=${{ github.event.workflow_run.name == 'Test' }}
+            type=raw,value=${{ steps.build_meta.outputs.short_sha }},enable=${{ github.event.workflow_run.name == 'Test' }}
+            type=raw,value=${{ steps.build_meta.outputs.date }},enable=${{ github.event.workflow_run.name == 'Test' }}
 
   publish:
     needs: metadata
