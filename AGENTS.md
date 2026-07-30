@@ -2,7 +2,7 @@
 
 ## What this project is
 
-A Flask + HTMX bridge that, when triggered from a Mealie recipe action, lets the
+A Flask bridge that, when triggered from a Mealie recipe action, lets the
 user review a recipe's ingredients and push them onto a KitchenOwl shopping list.
 
 This repository currently contains only the **skeleton**: an app factory, a working
@@ -46,7 +46,7 @@ Every new feature request is turned into an acceptance test *before* it's implem
    Wire real logic into the existing placeholder blueprints/clients rather than
    creating new top-level modules where an obvious one already exists:
    - `src/bridge/routes/webhook.py` — the Mealie recipe-action trigger
-   - `src/bridge/routes/review.py` — the HTMX ingredient review/edit screen
+   - `src/bridge/routes/review.py` — the ingredient review/edit screen
    - `src/bridge/clients/mealie.py`, `src/bridge/clients/kitchenowl.py` — API clients
 4. **Add `pytest` coverage for anything awkward to express acceptance-style**:
    ingredient parsing/normalization, quantity/unit conversion, API client error
@@ -84,5 +84,5 @@ records *why* each thing is the way it is and *when* it's worth reconsidering:
 ## Conventions
 
 See README.md's "Architecture & conventions" section (package layout, blueprint
-structure, HTMX vendoring, UI design direction) and "Commits" section (Conventional
+structure, UI design direction) and "Commits" section (Conventional
 Commits format used in this repo).

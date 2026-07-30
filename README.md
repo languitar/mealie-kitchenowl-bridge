@@ -7,7 +7,7 @@
 > trusting it with real accounts or real data.
 
 Bridges a Mealie recipe action to a KitchenOwl shopping list: trigger from a recipe
-in Mealie, review the ingredients in a small HTMX UI, and push them onto a
+in Mealie, review the ingredients in a small web UI, and push them onto a
 KitchenOwl shopping list.
 
 This repo is currently a **skeleton**. See [AGENTS.md](AGENTS.md) for the BDD-driven
@@ -72,7 +72,7 @@ are faked differs:
   below) daemon - the KitchenOwl image is pulled and started automatically, no
   manual `docker compose up` needed for tests.
 
-Some behavior (real DOM rendering, HTMX partial swaps, client-side JS) can only be
+Some behavior (real DOM rendering, client-side JS) can only be
 verified through an actual browser rather than the Flask test client. Those
 scenarios are tagged `@browser` and excluded from the default `uv run pytest` run
 since they need Chromium installed; run them explicitly with
@@ -112,7 +112,6 @@ additionally published under `dev`, its short commit hash, and the build date
   regenerate it with `uv lock` after changing dependencies, and commit the updated
   lockfile.
 - Flask blueprints per concern, registered in `src/bridge/app.py`.
-- HTMX is vendored at `src/bridge/static/htmx.min.js` - no CDN dependency.
 - UI design follows KitchenOwl's own UI (layout, styling, interaction patterns)
   rather than Mealie's or an independent style, since the bridge's screens are the
   step just before pushing onto a KitchenOwl list and should feel like part of that
