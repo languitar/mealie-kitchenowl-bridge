@@ -11,14 +11,14 @@ def config(kitchenowl_config):
     return kitchenowl_config
 
 
-@given("the webhook token is valid", target_fixture="webhook_token")
-def webhook_token_is_valid(config):
-    return config.webhook_token
+@given("the trigger token is valid", target_fixture="trigger_token")
+def trigger_token_is_valid(config):
+    return config.trigger_token
 
 
-@given("the webhook token is invalid", target_fixture="webhook_token")
-def webhook_token_is_invalid(config):
-    return config.webhook_token + "-wrong"
+@given("the trigger token is invalid", target_fixture="trigger_token")
+def trigger_token_is_invalid(config):
+    return config.trigger_token + "-wrong"
 
 
 @then("the request is rejected as unauthorized")

@@ -38,8 +38,8 @@ def real_mealie_recipe(mealie_server, recipe_name, ingredient_name):
 
 
 @given("the bridge's recipe action is configured on that recipe in Mealie")
-def bridge_action_configured(mealie_server, live_server, webhook_token):
-    action_url = f"{live_server.url('/recipes/action')}?token={webhook_token}&slug=${{slug}}"
+def bridge_action_configured(mealie_server, live_server, trigger_token):
+    action_url = f"{live_server.url('/recipes/action')}?token={trigger_token}&slug=${{slug}}"
     mealie_server.create_link_action("Send to KitchenOwl", action_url)
 
 

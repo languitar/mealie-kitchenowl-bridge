@@ -31,10 +31,10 @@ All configuration is via environment variables (see `.env.example`):
   shared KitchenOwl household and API token. There's no multi-household or
   per-user KitchenOwl access - everyone who uses the bridge sees and pushes to the
   same household.
-- `WEBHOOK_TOKEN` - required; the app refuses to start without it. A shared secret
-  that must be sent as a `token` query parameter on Mealie's webhook call. Mealie's
-  "Post"-type recipe action can't redirect your browser to the bridge - it's
-  executed entirely server-side by Mealie's own backend, so any response the
+- `TRIGGER_TOKEN` - required; the app refuses to start without it. A shared secret
+  that must be sent as a `token` query parameter when Mealie triggers the bridge.
+  Mealie's "Post"-type recipe action can't redirect your browser to the bridge -
+  it's executed entirely server-side by Mealie's own backend, so any response the
   bridge returns is invisible to you. Only a "Link"-type action causes a real
   browser navigation, but it can't carry the recipe's data - just whatever's
   templated into its configured URL - so the bridge fetches the triggering
@@ -42,7 +42,7 @@ All configuration is via environment variables (see `.env.example`):
   `MEALIE_API_TOKEN` below). Configure Mealie's recipe action as type **Link**,
   with URL:
   ```
-  https://bridge.example.com/recipes/action?token=<WEBHOOK_TOKEN>&slug=${slug}
+  https://bridge.example.com/recipes/action?token=<TRIGGER_TOKEN>&slug=${slug}
   ```
   Mealie substitutes `${slug}` with the current recipe's slug before opening the
   URL in a new tab.
@@ -52,8 +52,8 @@ All configuration is via environment variables (see `.env.example`):
   profile).
 
 There's no login of any kind on the ingredient review/confirm screens - anyone who
-can reach the bridge can use them once past the webhook token. Only the webhook
-trigger itself is authenticated. If that matters for your deployment, put your own
+can reach the bridge can use them once past the trigger token. Only the trigger
+itself is authenticated. If that matters for your deployment, put your own
 access control (e.g. a reverse proxy) in front of the bridge. There's also no
 database - nothing persists across requests or restarts.
 

@@ -6,9 +6,9 @@ A Flask bridge that, when triggered from a Mealie recipe action, lets the
 user review a recipe's ingredients and push them onto a KitchenOwl shopping list.
 
 This repository currently contains only the **skeleton**: an app factory, a working
-`/healthz` endpoint, and placeholder modules for the real capabilities. The webhook
-trigger, the ingredient review UI, and the KitchenOwl push are deliberately
-unimplemented — they get built one feature request at a time.
+`/healthz` endpoint, and placeholder modules for the real capabilities. The
+recipe-action trigger, the ingredient review UI, and the KitchenOwl push are
+deliberately unimplemented — they get built one feature request at a time.
 
 ## The BDD workflow
 
@@ -45,7 +45,7 @@ Every new feature request is turned into an acceptance test *before* it's implem
 3. **Implement the application code** under `src/bridge/` until the scenario passes.
    Wire real logic into the existing placeholder blueprints/clients rather than
    creating new top-level modules where an obvious one already exists:
-   - `src/bridge/routes/webhook.py` — the Mealie recipe-action trigger
+   - `src/bridge/routes/trigger.py` — the Mealie recipe-action trigger
    - `src/bridge/routes/review.py` — the ingredient review/edit screen
    - `src/bridge/clients/mealie.py`, `src/bridge/clients/kitchenowl.py` — API clients
 4. **Add `pytest` coverage for anything awkward to express acceptance-style**:
@@ -71,7 +71,7 @@ records *why* each thing is the way it is and *when* it's worth reconsidering:
   recipe's slug via `${slug}`), so `clients/mealie.py`'s `MealieClient.get_recipe`
   fetches the full recipe from Mealie's own API (`GET /api/recipes/{slug}`,
   Bearer token) rather than reading it from a request body.
-- **Auth**: the webhook trigger is authenticated (see README's Configuration
+- **Auth**: the recipe-action trigger is authenticated (see README's Configuration
   section), but per-user login (an identity provider in front of the bridge's own
   UI, plus per-user KitchenOwl access) was investigated and deliberately dropped:
   KitchenOwl's OIDC login flow can't be driven server-side by a third party (its

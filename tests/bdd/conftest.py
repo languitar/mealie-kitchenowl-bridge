@@ -106,7 +106,7 @@ def kitchenowl_config(config, kitchenowl_household) -> Config:
         kitchenowl_url=kitchenowl_household.server.base_url,
         kitchenowl_api_token=kitchenowl_household.server.admin_token,
         kitchenowl_household_id=str(kitchenowl_household.id),
-        webhook_token=config.webhook_token,
+        trigger_token=config.trigger_token,
         mealie_url=config.mealie_url,
         mealie_api_token=config.mealie_api_token,
     )

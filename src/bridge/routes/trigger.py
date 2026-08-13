@@ -6,10 +6,10 @@ from bridge.clients.mealie import MealieClient
 from bridge.ingredients import parse_ingredient
 from bridge.routes.review import render_shopping_list_selection
 
-webhook_bp = Blueprint("webhook", __name__)
+trigger_bp = Blueprint("trigger", __name__)
 
 
-@webhook_bp.get("/recipes/action")
+@trigger_bp.get("/recipes/action")
 def recipe_action():
     """Entry point for Mealie's "Link"-type recipe action (see AGENTS.md).
 
@@ -19,12 +19,12 @@ def recipe_action():
     carry no recipe payload, only whatever's templated into the configured
     URL - so this fetches the triggering recipe from Mealie's own API by
     slug instead of reading it from a request body. Mealie can't be
-    configured with custom headers for this call, so the shared webhook
+    configured with custom headers for this call, so the shared trigger
     secret travels as a `token` query parameter instead.
     """
     config = current_app.config["BRIDGE_CONFIG"]
     provided_token = request.args.get("token", "")
-    if not config.webhook_token or not hmac.compare_digest(provided_token, config.webhook_token):
+    if not config.trigger_token or not hmac.compare_digest(provided_token, config.trigger_token):
         return jsonify(error="unauthorized"), 401
 
     slug = request.args.get("slug", "")

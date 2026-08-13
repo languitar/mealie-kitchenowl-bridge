@@ -15,8 +15,8 @@ def bridge_is_running(client):
 
 
 @pytest.fixture
-def webhook_token(config):
-    return config.webhook_token
+def trigger_token(config):
+    return config.trigger_token
 
 
 def slugify(recipe_name: str) -> str:
@@ -39,7 +39,7 @@ def stub_recipe(
 
 def _trigger_recipe_action(
     running_app,
-    webhook_token,
+    trigger_token,
     requests_mock,
     config,
     recipe_name,
@@ -56,7 +56,7 @@ def _trigger_recipe_action(
     )
     response = running_app.get(
         "/recipes/action",
-        query_string={"token": webhook_token, "slug": slug},
+        query_string={"token": trigger_token, "slug": slug},
     )
     return {
         "response": response,
@@ -77,7 +77,7 @@ _TRIGGER_TEXT = (
 @when(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
 def recipe_action_triggered(
     running_app,
-    webhook_token,
+    trigger_token,
     requests_mock,
     config,
     recipe_name,
@@ -86,7 +86,7 @@ def recipe_action_triggered(
 ):
     return _trigger_recipe_action(
         running_app,
-        webhook_token,
+        trigger_token,
         requests_mock,
         config,
         recipe_name,
