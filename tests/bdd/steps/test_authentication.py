@@ -24,6 +24,7 @@ def trigger_token_is_invalid(config):
 @then("the request is rejected as unauthorized")
 def request_rejected_as_unauthorized(triggered):
     assert triggered["response"].status_code == 401
+    assert "text/html" in triggered["response"].content_type
 
 
 @then("I see the shopping lists to choose from")
