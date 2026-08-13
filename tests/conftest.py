@@ -11,6 +11,8 @@ def config() -> Config:
         kitchenowl_api_token="kitchenowl-token",
         kitchenowl_household_id="1",
         webhook_token="webhook-token",
+        mealie_url="http://mealie.test",
+        mealie_api_token="mealie-token",
     )
 
 

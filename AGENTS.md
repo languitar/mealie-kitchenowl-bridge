@@ -64,10 +64,13 @@ See README.md for the current concrete configuration and behavior; this section
 records *why* each thing is the way it is and *when* it's worth reconsidering:
 
 - **Mealie trigger shape**: resolved for the recipe-to-shopping-list feature —
-  Mealie POSTs the full recipe JSON directly to `/recipes/action`, so the bridge
-  never calls back into Mealie's own API, and `clients/mealie.py` stays an unused
-  placeholder. Revisit if a future feature needs data Mealie doesn't include in
-  that payload (at which point a real Mealie API client/token would be needed).
+  Mealie's "Post"-type recipe action can't redirect the user's browser (it's
+  executed entirely server-side by Mealie's own backend, invisible to the
+  browser), so the bridge is triggered via a "Link"-type action instead. Link
+  actions only carry whatever's templated into their configured URL (here, the
+  recipe's slug via `${slug}`), so `clients/mealie.py`'s `MealieClient.get_recipe`
+  fetches the full recipe from Mealie's own API (`GET /api/recipes/{slug}`,
+  Bearer token) rather than reading it from a request body.
 - **Auth**: the webhook trigger is authenticated (see README's Configuration
   section), but per-user login (an identity provider in front of the bridge's own
   UI, plus per-user KitchenOwl access) was investigated and deliberately dropped:
