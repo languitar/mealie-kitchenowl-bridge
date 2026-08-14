@@ -31,17 +31,29 @@ All configuration is via environment variables (see `.env.example`):
   shared KitchenOwl household and API token. There's no multi-household or
   per-user KitchenOwl access - everyone who uses the bridge sees and pushes to the
   same household.
-- `WEBHOOK_TOKEN` - required; the app refuses to start without it. A shared secret
-  that must be sent as a `token` query parameter on Mealie's webhook call (Mealie's
-  "Post"-type recipe action only supports a configurable target URL, not custom
-  headers). Configure Mealie's recipe action URL as:
+- `TRIGGER_TOKEN` - required; the app refuses to start without it. A shared secret
+  that must be sent as a `token` query parameter when Mealie triggers the bridge.
+  Mealie's "Post"-type recipe action can't redirect your browser to the bridge -
+  it's executed entirely server-side by Mealie's own backend, so any response the
+  bridge returns is invisible to you. Only a "Link"-type action causes a real
+  browser navigation, but it can't carry the recipe's data - just whatever's
+  templated into its configured URL - so the bridge fetches the triggering
+  recipe from Mealie's own API by slug instead (see `MEALIE_URL`/
+  `MEALIE_API_TOKEN` below). Configure Mealie's recipe action as type **Link**,
+  with URL:
   ```
-  https://bridge.example.com/recipes/action?token=<WEBHOOK_TOKEN>
+  https://bridge.example.com/recipes/action?token=<TRIGGER_TOKEN>&slug=${slug}
   ```
+  Mealie substitutes `${slug}` with the current recipe's slug before opening the
+  URL in a new tab.
+- `MEALIE_URL` / `MEALIE_API_TOKEN` - required; the app refuses to start without
+  them. Used to fetch the triggering recipe's ingredients server-side by slug
+  (`MEALIE_API_TOKEN` is a long-lived API token, generated in Mealie's user
+  profile).
 
 There's no login of any kind on the ingredient review/confirm screens - anyone who
-can reach the bridge can use them once past the webhook token. Only the webhook
-trigger itself is authenticated. If that matters for your deployment, put your own
+can reach the bridge can use them once past the trigger token. Only the trigger
+itself is authenticated. If that matters for your deployment, put your own
 access control (e.g. a reverse proxy) in front of the bridge. There's also no
 database - nothing persists across requests or restarts.
 
@@ -65,7 +77,8 @@ Unit and integration tests are plain pytest with no external services. Acceptanc
 (BDD) scenarios run through a real Flask test client; how the two external services
 are faked differs:
 
-- **Mealie** is stubbed with `requests_mock` - tests never call a live Mealie.
+- **Mealie** is stubbed with `requests_mock` for most scenarios - tests never call
+  a live Mealie there.
 - **KitchenOwl** scenarios run against a **real KitchenOwl instance in a
   container** instead of a mock, so tests can't drift from what KitchenOwl actually
   does. This is why the default suite needs a working local Docker (or Podman, see
@@ -76,7 +89,11 @@ Some behavior (real DOM rendering, client-side JS) can only be
 verified through an actual browser rather than the Flask test client. Those
 scenarios are tagged `@browser` and excluded from the default `uv run pytest` run
 since they need Chromium installed; run them explicitly with
-`uv run pytest -m browser` after `uv run playwright install chromium`.
+`uv run pytest -m browser` after `uv run playwright install chromium`. One such
+scenario also runs against a **real Mealie instance in a container** (like
+KitchenOwl's), driving an actual browser click through Mealie's own UI - this is
+the only way to catch bugs in how Mealie's frontend actually triggers the
+bridge (see AGENTS.md), which a direct HTTP call to `/recipes/action` can't.
 
 ### Using Podman instead of Docker
 

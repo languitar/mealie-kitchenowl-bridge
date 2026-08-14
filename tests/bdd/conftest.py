@@ -16,6 +16,7 @@ from werkzeug.serving import make_server
 from bridge.config import Config
 
 from .kitchenowl_container import KitchenOwlTestServer, start_kitchenowl_container
+from .mealie_container import start_mealie_container
 
 
 class _LiveServer:
@@ -62,6 +63,21 @@ def kitchenowl_server():
         container.stop()
 
 
+@pytest.fixture(scope="session")
+def mealie_server():
+    """Start one real Mealie container for the whole test session.
+
+    Only the `mealie_recipe_trigger` browser scenario requests this - it's
+    the one testing the actual click-through-Mealie flow, so it's the only
+    one that should pay the container startup cost.
+    """
+    container, server = start_mealie_container()
+    try:
+        yield server
+    finally:
+        container.stop()
+
+
 @dataclass
 class KitchenOwlHousehold:
     server: KitchenOwlTestServer
@@ -90,5 +106,7 @@ def kitchenowl_config(config, kitchenowl_household) -> Config:
         kitchenowl_url=kitchenowl_household.server.base_url,
         kitchenowl_api_token=kitchenowl_household.server.admin_token,
         kitchenowl_household_id=str(kitchenowl_household.id),
-        webhook_token=config.webhook_token,
+        trigger_token=config.trigger_token,
+        mealie_url=config.mealie_url,
+        mealie_api_token=config.mealie_api_token,
     )

@@ -5,6 +5,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from werkzeug.datastructures import MultiDict
 
 from .common import *  # noqa: F401,F403
+from .common import slugify, stub_recipe
 
 scenarios("../features/recipe_to_shopping_list.feature")
 
@@ -74,23 +75,27 @@ def _split_quantity(quantity: str) -> tuple[float, str | None]:
     target_fixture="triggered",
 )
 def recipe_action_triggered_with_quantity(
-    running_app, webhook_token, recipe_name, ingredient_name, quantity
+    running_app, trigger_token, requests_mock, config, recipe_name, ingredient_name, quantity
 ):
     amount, unit_name = _split_quantity(quantity)
-    response = running_app.post(
+    slug = slugify(recipe_name)
+    stub_recipe(
+        requests_mock,
+        config,
+        slug,
+        recipe_name,
+        [
+            {
+                "display": f"{quantity} {ingredient_name}",
+                "food": {"name": ingredient_name},
+                "quantity": amount,
+                "unit": {"name": unit_name} if unit_name else None,
+            }
+        ],
+    )
+    response = running_app.get(
         "/recipes/action",
-        query_string={"token": webhook_token},
-        json={
-            "name": recipe_name,
-            "recipeIngredient": [
-                {
-                    "display": f"{quantity} {ingredient_name}",
-                    "food": {"name": ingredient_name},
-                    "quantity": amount,
-                    "unit": {"name": unit_name} if unit_name else None,
-                }
-            ],
-        },
+        query_string={"token": trigger_token, "slug": slug},
     )
     return {"response": response, "ingredients": [{"name": ingredient_name, "quantity": quantity}]}
 
@@ -103,17 +108,19 @@ def recipe_action_triggered_with_quantity(
     target_fixture="triggered",
 )
 def recipe_action_triggered_without_quantity(
-    running_app, webhook_token, recipe_name, ingredient_name
+    running_app, trigger_token, requests_mock, config, recipe_name, ingredient_name
 ):
-    response = running_app.post(
+    slug = slugify(recipe_name)
+    stub_recipe(
+        requests_mock,
+        config,
+        slug,
+        recipe_name,
+        [{"display": ingredient_name, "food": {"name": ingredient_name}}],
+    )
+    response = running_app.get(
         "/recipes/action",
-        query_string={"token": webhook_token},
-        json={
-            "name": recipe_name,
-            "recipeIngredient": [
-                {"display": ingredient_name, "food": {"name": ingredient_name}},
-            ],
-        },
+        query_string={"token": trigger_token, "slug": slug},
     )
     return {"response": response, "ingredients": [{"name": ingredient_name, "quantity": None}]}
 
