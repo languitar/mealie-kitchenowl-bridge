@@ -1,16 +1,15 @@
 Feature: Authentication
   As the operator of the bridge
-  I want the recipe-action trigger to require a shared secret
-  So that only Mealie can trigger the bridge
+  I want every page of the bridge to require signing in via the configured OIDC provider
+  So that only authorized users can reach it
 
-  Scenario: A recipe action with an invalid trigger token is rejected
+  Scenario: An unauthenticated visit to the recipe action trigger is sent to log in
     Given the bridge is running
-    And the trigger token is invalid
     When a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients "Tomatoes" and "Basil"
-    Then the request is rejected as unauthorized
+    Then I am redirected to log in
 
-  Scenario: A recipe action with a valid trigger token is accepted
+  Scenario: Completing login returns to the originally requested recipe action
     Given the bridge is running
-    And the trigger token is valid
-    When a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients "Tomatoes" and "Basil"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients "Tomatoes" and "Basil"
+    When I complete login with the identity provider
     Then I see the shopping lists to choose from

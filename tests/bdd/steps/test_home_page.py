@@ -1,11 +1,13 @@
 from pytest_bdd import given, scenarios, then, when
 
+from .common import log_in_browser_context
+
 scenarios("../features/home_page.feature")
 
 
 @given("the bridge is running in a browser")
-def bridge_is_running_in_a_browser(live_server):
-    pass
+def bridge_is_running_in_a_browser(context, app, live_server):
+    log_in_browser_context(context, app, live_server)
 
 
 @when("I open the home page", target_fixture="opened_page")

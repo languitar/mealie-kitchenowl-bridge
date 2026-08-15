@@ -47,6 +47,8 @@ Every new feature request is turned into an acceptance test *before* it's implem
    creating new top-level modules where an obvious one already exists:
    - `src/bridge/routes/trigger.py` — the Mealie recipe-action trigger
    - `src/bridge/routes/review.py` — the ingredient review/edit screen
+   - `src/bridge/routes/auth.py`, `src/bridge/auth.py` — OIDC login and the
+     app-wide login gate
    - `src/bridge/clients/mealie.py`, `src/bridge/clients/kitchenowl.py` — API clients
 4. **Add `pytest` coverage for anything awkward to express acceptance-style**:
    ingredient parsing/normalization, quantity/unit conversion, API client error
@@ -71,14 +73,20 @@ records *why* each thing is the way it is and *when* it's worth reconsidering:
   recipe's slug via `${slug}`), so `clients/mealie.py`'s `MealieClient.get_recipe`
   fetches the full recipe from Mealie's own API (`GET /api/recipes/{slug}`,
   Bearer token) rather than reading it from a request body.
-- **Auth**: the recipe-action trigger is authenticated (see README's Configuration
-  section), but per-user login (an identity provider in front of the bridge's own
-  UI, plus per-user KitchenOwl access) was investigated and deliberately dropped:
-  KitchenOwl's OIDC login flow can't be driven server-side by a third party (its
-  redirect URI is hardcoded to KitchenOwl's own frontend, so an external caller
-  can't capture the resulting code), and KitchenOwl has no admin API to resolve
-  which household an arbitrary authenticated user belongs to. Revisit as its own
-  feature request if that trade-off stops being acceptable.
+- **Auth**: the bridge's own UI is gated app-wide by mandatory OIDC login (see
+  README's Configuration section and `src/bridge/auth.py`) - the trigger token
+  that used to guard only `/recipes/action` has been retired in favor of this.
+  This is a *different, narrower* thing than the per-user KitchenOwl access idea
+  that was investigated and deliberately dropped: driving KitchenOwl's own OIDC
+  login server-side (to resolve per-user KitchenOwl household access) still isn't
+  possible - KitchenOwl's OIDC redirect URI is hardcoded to its own frontend, so
+  an external caller can't capture the resulting code, and KitchenOwl has no admin
+  API to resolve which household an arbitrary authenticated user belongs to. The
+  bridge's OIDC login is independent of that: it's its own relying party gating
+  only its own session, while KitchenOwl access remains one shared
+  `KITCHENOWL_API_TOKEN`/`KITCHENOWL_HOUSEHOLD_ID` regardless of who's logged in.
+  Per-user KitchenOwl access is still deferred - revisit as its own feature
+  request if that trade-off stops being acceptable.
 - **Persistence**: none (see README). If a feature needs to hold state across
   requests (e.g. a pending ingredient review), keep it in-process/in-memory until a
   feature request specifically calls for durability, then add persistence at that

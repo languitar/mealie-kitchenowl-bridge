@@ -5,8 +5,10 @@ feature they belong to; only promote a step here once a second feature
 needs it verbatim.
 """
 
-import pytest
+from flask.sessions import SecureCookieSessionInterface
 from pytest_bdd import given, parsers, when
+
+_LOGGED_IN_USER = {"sub": "test-user", "email": "test-user@example.com"}
 
 
 @given("the bridge is running", target_fixture="running_app")
@@ -14,9 +16,33 @@ def bridge_is_running(client):
     return client
 
 
-@pytest.fixture
-def trigger_token(config):
-    return config.trigger_token
+@given("the bridge is running as a logged-in user", target_fixture="running_app")
+def bridge_is_running_as_logged_in_user(client):
+    with client.session_transaction() as flask_session:
+        flask_session["user"] = _LOGGED_IN_USER
+    return client
+
+
+def log_in_browser_context(context, app, live_server):
+    """Inject a signed Flask session cookie so a browser-driven (`@browser`)
+    scenario starts already logged in.
+
+    Playwright can't drive a real OIDC redirect dance through a third-party
+    identity provider, so this bypasses login the same way
+    `session_transaction()` does for the Flask-test-client tier - by minting
+    the same signed cookie Flask's own login flow would produce.
+    """
+    serializer = SecureCookieSessionInterface().get_signing_serializer(app)
+    cookie_value = serializer.dumps({"user": _LOGGED_IN_USER})
+    context.add_cookies(
+        [
+            {
+                "name": app.config["SESSION_COOKIE_NAME"],
+                "value": cookie_value,
+                "url": live_server.url("/"),
+            }
+        ]
+    )
 
 
 def slugify(recipe_name: str) -> str:
@@ -39,7 +65,6 @@ def stub_recipe(
 
 def _trigger_recipe_action(
     running_app,
-    trigger_token,
     requests_mock,
     config,
     recipe_name,
@@ -56,7 +81,7 @@ def _trigger_recipe_action(
     )
     response = running_app.get(
         "/recipes/action",
-        query_string={"token": trigger_token, "slug": slug},
+        query_string={"slug": slug},
     )
     return {
         "response": response,
@@ -77,7 +102,6 @@ _TRIGGER_TEXT = (
 @when(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
 def recipe_action_triggered(
     running_app,
-    trigger_token,
     requests_mock,
     config,
     recipe_name,
@@ -86,7 +110,6 @@ def recipe_action_triggered(
 ):
     return _trigger_recipe_action(
         running_app,
-        trigger_token,
         requests_mock,
         config,
         recipe_name,

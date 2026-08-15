@@ -15,6 +15,7 @@ from werkzeug.serving import make_server
 
 from bridge.config import Config
 
+from .fake_oidc import FakeOidcProvider
 from .kitchenowl_container import KitchenOwlTestServer, start_kitchenowl_container
 from .mealie_container import start_mealie_container
 
@@ -78,6 +79,20 @@ def mealie_server():
         container.stop()
 
 
+@pytest.fixture
+def oidc_provider(config, requests_mock) -> FakeOidcProvider:
+    """A fake identity provider stubbed via `requests_mock` (see `fake_oidc.py`).
+
+    Registers the discovery document and JWKS - stable for the whole test, so
+    scenarios only need to additionally stub a token response for the login
+    they're driving.
+    """
+    provider = FakeOidcProvider(issuer=config.oidc_issuer, client_id=config.oidc_client_id)
+    requests_mock.real_http = True
+    provider.register(requests_mock)
+    return provider
+
+
 @dataclass
 class KitchenOwlHousehold:
     server: KitchenOwlTestServer
@@ -106,7 +121,10 @@ def kitchenowl_config(config, kitchenowl_household) -> Config:
         kitchenowl_url=kitchenowl_household.server.base_url,
         kitchenowl_api_token=kitchenowl_household.server.admin_token,
         kitchenowl_household_id=str(kitchenowl_household.id),
-        trigger_token=config.trigger_token,
+        oidc_issuer=config.oidc_issuer,
+        oidc_client_id=config.oidc_client_id,
+        oidc_client_secret=config.oidc_client_secret,
+        secret_key=config.secret_key,
         mealie_url=config.mealie_url,
         mealie_api_token=config.mealie_api_token,
     )
