@@ -90,10 +90,11 @@ are faked differs:
 
 - **Mealie** is stubbed with `requests_mock` for most scenarios - tests never call
   a live Mealie there.
-- The **OIDC provider** is a lightweight fake (`tests/bdd/fake_oidc.py`), stubbed
-  with `requests_mock` the same way - it serves real discovery/token/JWKS/userinfo
-  responses and signs real `id_token`s, so the app's actual Authlib login code runs
-  end to end without needing a real identity provider in tests.
+- The **OIDC provider** is a real identity provider in a container
+  (`mock-oauth2-server`, `tests/bdd/oidc_container.py`), like KitchenOwl below, so
+  the app's actual Authlib login code runs end to end against a real discovery
+  document, token endpoint, and JWKS - with its interactive login page disabled so
+  the flow can still be driven with plain HTTP calls.
 - **KitchenOwl** scenarios run against a **real KitchenOwl instance in a
   container** instead of a mock, so tests can't drift from what KitchenOwl actually
   does. This is why the default suite needs a working local Docker (or Podman, see

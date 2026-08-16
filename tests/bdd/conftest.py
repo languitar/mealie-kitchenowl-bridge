@@ -15,9 +15,9 @@ from werkzeug.serving import make_server
 
 from bridge.config import Config
 
-from .fake_oidc import FakeOidcProvider
 from .kitchenowl_container import KitchenOwlTestServer, start_kitchenowl_container
 from .mealie_container import start_mealie_container
+from .oidc_container import start_oidc_container
 
 
 class _LiveServer:
@@ -79,18 +79,19 @@ def mealie_server():
         container.stop()
 
 
-@pytest.fixture
-def oidc_provider(config, requests_mock) -> FakeOidcProvider:
-    """A fake identity provider stubbed via `requests_mock` (see `fake_oidc.py`).
+@pytest.fixture(scope="session")
+def oidc_server():
+    """Start one real OIDC identity provider for the whole test session.
 
-    Registers the discovery document and JWKS - stable for the whole test, so
-    scenarios only need to additionally stub a token response for the login
-    they're driving.
+    Only the login-flow scenario in `authentication.feature` requests this -
+    every other scenario logs in via a pre-seeded session (see
+    `tests/bdd/steps/common.py`) and never touches it.
     """
-    provider = FakeOidcProvider(issuer=config.oidc_issuer, client_id=config.oidc_client_id)
-    requests_mock.real_http = True
-    provider.register(requests_mock)
-    return provider
+    container, server = start_oidc_container()
+    try:
+        yield server
+    finally:
+        container.stop()
 
 
 @dataclass
