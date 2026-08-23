@@ -97,3 +97,13 @@ records *why* each thing is the way it is and *when* it's worth reconsidering:
 See README.md's "Architecture & conventions" section (package layout, blueprint
 structure, UI design direction) and "Commits" section (Conventional
 Commits format used in this repo).
+
+### Rewriting history on feature branches
+
+Unlike the general default of only ever creating new commits, in this repo it's
+fine to amend or force-push commits on a **feature branch** (not `main`) - e.g. to
+fix up a commit that hasn't been reviewed yet, or to fold a small follow-up fix
+into the commit it belongs with. This still needs the same judgment as any other
+git action - the change may be visible to others via an open PR - but no separate
+confirmation is needed each time for a feature branch already worked on in the
+current conversation. `main` itself is never rewritten.
