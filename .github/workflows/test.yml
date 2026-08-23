@@ -35,6 +35,12 @@ jobs:
       - name: Test
         run: uv run pytest
 
+      - name: Install Playwright browsers
+        run: uv run playwright install --with-deps chromium
+
+      - name: Test (browser)
+        run: uv run pytest -m browser
+
   # Build-only (push: false by default), so a broken Dockerfile shows up as
   # a PR status check instead of only being discovered after merge, once
   # publish-image.yml tries to build the same source for real.
