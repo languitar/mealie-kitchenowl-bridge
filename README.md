@@ -31,31 +31,42 @@ All configuration is via environment variables (see `.env.example`):
   shared KitchenOwl household and API token. There's no multi-household or
   per-user KitchenOwl access - everyone who uses the bridge sees and pushes to the
   same household.
-- `TRIGGER_TOKEN` - required; the app refuses to start without it. A shared secret
-  that must be sent as a `token` query parameter when Mealie triggers the bridge.
-  Mealie's "Post"-type recipe action can't redirect your browser to the bridge -
-  it's executed entirely server-side by Mealie's own backend, so any response the
-  bridge returns is invisible to you. Only a "Link"-type action causes a real
-  browser navigation, but it can't carry the recipe's data - just whatever's
-  templated into its configured URL - so the bridge fetches the triggering
-  recipe from Mealie's own API by slug instead (see `MEALIE_URL`/
-  `MEALIE_API_TOKEN` below). Configure Mealie's recipe action as type **Link**,
-  with URL:
-  ```
-  https://bridge.example.com/recipes/action?token=<TRIGGER_TOKEN>&slug=${slug}
-  ```
-  Mealie substitutes `${slug}` with the current recipe's slug before opening the
-  URL in a new tab.
+- `OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` - required; the app
+  refuses to start without them. Every page of the bridge requires signing in
+  via this OIDC provider first (see below); `OIDC_ISSUER` is the bare issuer
+  URL, and the bridge discovers everything else from
+  `{OIDC_ISSUER}/.well-known/openid-configuration`. Register the bridge as a
+  confidential client with your provider, with
+  `https://bridge.example.com/auth/callback` as an allowed redirect URI.
+- `SECRET_KEY` - required; the app refuses to start without it. Signs the login
+  session cookie. Keep it stable across restarts (rotating it logs everyone
+  out) and generate it with real randomness, e.g.
+  `python -c "import secrets; print(secrets.token_hex(32))"`.
 - `MEALIE_URL` / `MEALIE_API_TOKEN` - required; the app refuses to start without
   them. Used to fetch the triggering recipe's ingredients server-side by slug
   (`MEALIE_API_TOKEN` is a long-lived API token, generated in Mealie's user
-  profile).
+  profile). Mealie's "Post"-type recipe action can't redirect your browser to
+  the bridge - it's executed entirely server-side by Mealie's own backend, so
+  any response the bridge returns is invisible to you. Only a "Link"-type
+  action causes a real browser navigation, but it can't carry the recipe's
+  data - just whatever's templated into its configured URL - so the bridge
+  fetches the triggering recipe from Mealie's own API by slug instead.
+  Configure Mealie's recipe action as type **Link**, with URL:
+  ```
+  https://bridge.example.com/recipes/action?slug=${slug}
+  ```
+  Mealie substitutes `${slug}` with the current recipe's slug before opening the
+  URL in a new tab.
 
-There's no login of any kind on the ingredient review/confirm screens - anyone who
-can reach the bridge can use them once past the trigger token. Only the trigger
-itself is authenticated. If that matters for your deployment, put your own
-access control (e.g. a reverse proxy) in front of the bridge. There's also no
-database - nothing persists across requests or restarts.
+Every route requires an authenticated OIDC session - including that Link action
+above and the ingredient review/confirm screens - except `GET /healthz`. OIDC
+login only gates the bridge's own UI: KitchenOwl access is still one shared
+household/API token (`KITCHENOWL_*` above) regardless of who's logged in - there's
+no per-user KitchenOwl access (see AGENTS.md's deferred multi-user decision).
+The app is expected to run behind a TLS-terminating reverse proxy that forwards
+`X-Forwarded-Proto`/`X-Forwarded-Host`, so the OIDC redirect URI it generates
+matches its real public URL. There's also no database - nothing persists across
+requests or restarts.
 
 ## Running
 
@@ -79,6 +90,11 @@ are faked differs:
 
 - **Mealie** is stubbed with `requests_mock` for most scenarios - tests never call
   a live Mealie there.
+- The **OIDC provider** is a real identity provider in a container
+  (`mock-oauth2-server`, `tests/bdd/oidc_container.py`), like KitchenOwl below, so
+  the app's actual Authlib login code runs end to end against a real discovery
+  document, token endpoint, and JWKS - with its interactive login page disabled so
+  the flow can still be driven with plain HTTP calls.
 - **KitchenOwl** scenarios run against a **real KitchenOwl instance in a
   container** instead of a mock, so tests can't drift from what KitchenOwl actually
   does. This is why the default suite needs a working local Docker (or Podman, see

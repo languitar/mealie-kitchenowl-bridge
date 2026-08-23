@@ -4,7 +4,7 @@ Feature: Push recipe ingredients to a KitchenOwl shopping list
   So that the recipe's ingredients end up on the shopping list I choose
 
   Background:
-    Given the bridge is running
+    Given the bridge is running as a logged-in user
     And KitchenOwl has the shopping lists "Groceries" and "Household"
 
   Scenario: The selection dialog lists the available shopping lists

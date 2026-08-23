@@ -17,6 +17,7 @@ from bridge.config import Config
 
 from .kitchenowl_container import KitchenOwlTestServer, start_kitchenowl_container
 from .mealie_container import start_mealie_container
+from .oidc_container import start_oidc_container
 
 
 class _LiveServer:
@@ -78,6 +79,21 @@ def mealie_server():
         container.stop()
 
 
+@pytest.fixture(scope="session")
+def oidc_server():
+    """Start one real OIDC identity provider for the whole test session.
+
+    Only the login-flow scenario in `authentication.feature` requests this -
+    every other scenario logs in via a pre-seeded session (see
+    `tests/bdd/steps/common.py`) and never touches it.
+    """
+    container, server = start_oidc_container()
+    try:
+        yield server
+    finally:
+        container.stop()
+
+
 @dataclass
 class KitchenOwlHousehold:
     server: KitchenOwlTestServer
@@ -106,7 +122,10 @@ def kitchenowl_config(config, kitchenowl_household) -> Config:
         kitchenowl_url=kitchenowl_household.server.base_url,
         kitchenowl_api_token=kitchenowl_household.server.admin_token,
         kitchenowl_household_id=str(kitchenowl_household.id),
-        trigger_token=config.trigger_token,
+        oidc_issuer=config.oidc_issuer,
+        oidc_client_id=config.oidc_client_id,
+        oidc_client_secret=config.oidc_client_secret,
+        secret_key=config.secret_key,
         mealie_url=config.mealie_url,
         mealie_api_token=config.mealie_api_token,
     )

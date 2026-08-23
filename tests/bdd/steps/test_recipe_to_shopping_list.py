@@ -75,7 +75,7 @@ def _split_quantity(quantity: str) -> tuple[float, str | None]:
     target_fixture="triggered",
 )
 def recipe_action_triggered_with_quantity(
-    running_app, trigger_token, requests_mock, config, recipe_name, ingredient_name, quantity
+    running_app, requests_mock, config, recipe_name, ingredient_name, quantity
 ):
     amount, unit_name = _split_quantity(quantity)
     slug = slugify(recipe_name)
@@ -95,7 +95,7 @@ def recipe_action_triggered_with_quantity(
     )
     response = running_app.get(
         "/recipes/action",
-        query_string={"token": trigger_token, "slug": slug},
+        query_string={"slug": slug},
     )
     return {"response": response, "ingredients": [{"name": ingredient_name, "quantity": quantity}]}
 
@@ -108,7 +108,7 @@ def recipe_action_triggered_with_quantity(
     target_fixture="triggered",
 )
 def recipe_action_triggered_without_quantity(
-    running_app, trigger_token, requests_mock, config, recipe_name, ingredient_name
+    running_app, requests_mock, config, recipe_name, ingredient_name
 ):
     slug = slugify(recipe_name)
     stub_recipe(
@@ -120,7 +120,7 @@ def recipe_action_triggered_without_quantity(
     )
     response = running_app.get(
         "/recipes/action",
-        query_string={"token": trigger_token, "slug": slug},
+        query_string={"slug": slug},
     )
     return {"response": response, "ingredients": [{"name": ingredient_name, "quantity": None}]}
 
