@@ -353,3 +353,47 @@ def ingredient_added_as_new_item(
     assert push_response.status_code == 200
     items = _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name)
     assert ingredient in items
+
+
+def _suggested_item_names(body: str) -> set[str]:
+    """Read the item names out of the rendered `_item_search_results.html` fragment.
+
+    The "no matching items" fallback renders a `<div>`, not a `<button
+    class="dropdown-item">`, so it's naturally excluded here rather than
+    needing its own special case.
+    """
+    return {
+        match.strip()
+        for match in re.findall(r'class="dropdown-item"[^>]*>(.*?)</button>', body, re.DOTALL)
+    }
+
+
+@when(
+    # `parsers.parse`'s default field type requires at least one character, which
+    # can't match the empty-query scenario's "" - a plain regex allows it.
+    parsers.re(r'I search the existing KitchenOwl items for "(?P<query>.*)"'),
+    target_fixture="search_results",
+)
+def search_existing_items(running_app, query):
+    response = running_app.get("/items/search", query_string={"q": query})
+    return response.get_data(as_text=True)
+
+
+@then(parsers.parse('I see the KitchenOwl items "{first_item}" and "{second_item}" suggested'))
+def see_items_suggested(search_results, first_item, second_item):
+    assert {first_item, second_item} <= _suggested_item_names(search_results)
+
+
+@then(parsers.parse('I see the KitchenOwl item "{item_name}" suggested'))
+def see_item_suggested(search_results, item_name):
+    assert item_name in _suggested_item_names(search_results)
+
+
+@then(parsers.parse('I do not see the KitchenOwl item "{item_name}" suggested'))
+def do_not_see_item_suggested(search_results, item_name):
+    assert item_name not in _suggested_item_names(search_results)
+
+
+@then("I see no KitchenOwl items suggested")
+def see_no_items_suggested(search_results):
+    assert _suggested_item_names(search_results) == set()
