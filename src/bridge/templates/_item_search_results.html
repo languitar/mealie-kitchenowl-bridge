@@ -1,0 +1,11 @@
+{% for item in items %}
+<button type="button" class="dropdown-item"
+        hx-on:click="let row=this.closest('.ingredient-row');
+                     row.querySelector('.item-search-input').value='{{ item.name|e }}';
+                     row.querySelector('select').value='{{ item.id }}';
+                     row.querySelector('.dropdown-content').innerHTML='';">
+  {{ item.name }}
+</button>
+{% else %}
+<div class="dropdown-item has-text-grey">No matching items</div>
+{% endfor %}

@@ -83,3 +83,28 @@ Feature: Push recipe ingredients to a KitchenOwl shopping list
     When I choose to create a new KitchenOwl item for the ingredient "Bananas"
     And I confirm the ingredient selection
     Then the ingredient "Bananas" is added to the "Groceries" shopping list in KitchenOwl as a new item
+
+  Scenario: Searching for an item suggests items that fuzzy-match the search text
+    Given KitchenOwl already has an item called "Tomato"
+    And KitchenOwl already has an item called "Tomato Sauce"
+    And KitchenOwl already has an item called "Banana"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredient "Basil" and no quantity
+    And I have selected the shopping list "Groceries"
+    When I search the existing KitchenOwl items for "tom"
+    Then I see the KitchenOwl items "Tomato" and "Tomato Sauce" suggested
+    And I do not see the KitchenOwl item "Banana" suggested
+
+  Scenario: Leaving the item search empty lists the household's existing items to browse
+    Given KitchenOwl already has an item called "Banana"
+    And a Mealie recipe action is triggered for the recipe "Fruit Salad" with the ingredient "Bananas" and no quantity
+    And I have selected the shopping list "Groceries"
+    When I search the existing KitchenOwl items for ""
+    Then I see the KitchenOwl item "Banana" suggested
+
+  Scenario: Searching for something unrelated to any existing item suggests nothing and still defaults to creating a new item
+    Given KitchenOwl already has an item called "Banana"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredient "Tomatoes" and no quantity
+    And I have selected the shopping list "Groceries"
+    When I search the existing KitchenOwl items for "xyzzy"
+    Then I see no KitchenOwl items suggested
+    And I see the ingredient "Tomatoes" set to create a new KitchenOwl item

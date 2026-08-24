@@ -1,0 +1,13 @@
+.dropdown:focus-within .dropdown-menu {
+  display: block;
+}
+
+.ingredient-row .dropdown,
+.ingredient-row .dropdown-trigger,
+.ingredient-row .dropdown-menu {
+  width: 100%;
+}
+
+.ingredient-row select {
+  display: none;
+}

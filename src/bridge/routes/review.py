@@ -3,7 +3,7 @@ from werkzeug.datastructures import MultiDict
 
 from bridge.clients.kitchenowl import KitchenOwlClient
 from bridge.ingredients import Ingredient
-from bridge.matching import KitchenOwlItem, find_best_match
+from bridge.matching import KitchenOwlItem, find_best_match, rank_items
 
 _NEW_ITEM_CHOICE = "new"
 
@@ -72,8 +72,22 @@ def review_ingredients(list_id: int):
         list_id=list_id,
         shopping_list_name=_shopping_list_name(client, list_id),
         ingredients=ingredients,
-        items=items,
         matches=matches,
+    )
+
+
+@review_bp.get("/items/search")
+def search_items():
+    """Return a fragment of KitchenOwl items fuzzy-ranked against a search query.
+
+    Backs the item-search input on the ingredient review screen (see
+    `select_ingredients.html`) - queried live via HTMX as the user types,
+    independently of which ingredient row triggered it.
+    """
+    client = _kitchenowl_client()
+    items = [KitchenOwlItem(id=item["id"], name=item["name"]) for item in client.get_items()]
+    return render_template(
+        "_item_search_results.html", items=rank_items(request.args.get("q", ""), items)
     )
 
 
