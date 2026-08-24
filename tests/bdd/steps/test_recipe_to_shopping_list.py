@@ -5,7 +5,7 @@ from pytest_bdd import given, parsers, scenarios, then, when
 from werkzeug.datastructures import MultiDict
 
 from .common import *  # noqa: F401,F403
-from .common import slugify, stub_recipe
+from .common import _LOGGED_IN_USER, slugify, stub_recipe
 
 scenarios("../features/recipe_to_shopping_list.feature")
 
@@ -13,6 +13,17 @@ scenarios("../features/recipe_to_shopping_list.feature")
 @pytest.fixture
 def config(kitchenowl_config):
     return kitchenowl_config
+
+
+@given("the bridge is running as a logged-in user", target_fixture="running_app")
+def bridge_is_running_as_logged_in_user(client):
+    """Overrides `common.bridge_is_running_as_logged_in_user` (now browser-based):
+    this feature still drives through the Flask test client, until it's converted to
+    real browser interactions.
+    """
+    with client.session_transaction() as flask_session:
+        flask_session["user"] = _LOGGED_IN_USER
+    return client
 
 
 @given(

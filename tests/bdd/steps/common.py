@@ -16,21 +16,13 @@ def bridge_is_running(live_server):
     pass
 
 
-@given("the bridge is running as a logged-in user", target_fixture="running_app")
-def bridge_is_running_as_logged_in_user(client):
-    with client.session_transaction() as flask_session:
-        flask_session["user"] = _LOGGED_IN_USER
-    return client
-
-
 def log_in_browser_context(context, app, live_server):
-    """Inject a signed Flask session cookie so a browser-driven (`@browser`)
-    scenario starts already logged in.
+    """Inject a signed Flask session cookie so a browser context starts already
+    logged in.
 
     Playwright can't drive a real OIDC redirect dance through a third-party
-    identity provider, so this bypasses login the same way
-    `session_transaction()` does for the Flask-test-client tier - by minting
-    the same signed cookie Flask's own login flow would produce.
+    identity provider, so this bypasses login by minting the same signed
+    cookie Flask's own login flow would produce.
     """
     serializer = SecureCookieSessionInterface().get_signing_serializer(app)
     cookie_value = serializer.dumps({"user": _LOGGED_IN_USER})
@@ -43,6 +35,11 @@ def log_in_browser_context(context, app, live_server):
             }
         ]
     )
+
+
+@given("the bridge is running as a logged-in user")
+def bridge_is_running_as_logged_in_user(context, app, live_server):
+    log_in_browser_context(context, app, live_server)
 
 
 def slugify(recipe_name: str) -> str:
