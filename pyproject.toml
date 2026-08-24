@@ -32,10 +32,6 @@ packages = ["src/bridge"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = [
-    "browser: real-browser scenario via Playwright + pytest-flask's live_server (opt-in: pytest -m browser)",
-]
-addopts = ["-m", "not browser"]
 live_server_scope = "function"
 filterwarnings = [
     # pytest-bdd 8.1.0's compat shim still calls a pytest-internal fixture

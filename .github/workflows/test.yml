@@ -32,9 +32,6 @@ jobs:
       - name: Lint
         run: uv run ruff check .
 
-      - name: Test
-        run: uv run pytest
-
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v4
@@ -50,8 +47,8 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: uv run playwright install-deps chromium
 
-      - name: Test (browser)
-        run: uv run pytest -m browser
+      - name: Test
+        run: uv run pytest
 
   # Build-only (push: false by default), so a broken Dockerfile shows up as
   # a PR status check instead of only being discovered after merge, once
