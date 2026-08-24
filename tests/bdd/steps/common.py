@@ -11,9 +11,9 @@ from pytest_bdd import given, parsers, when
 _LOGGED_IN_USER = {"sub": "test-user", "email": "test-user@example.com"}
 
 
-@given("the bridge is running", target_fixture="running_app")
-def bridge_is_running(client):
-    return client
+@given("the bridge is running")
+def bridge_is_running(live_server):
+    pass
 
 
 @given("the bridge is running as a logged-in user", target_fixture="running_app")

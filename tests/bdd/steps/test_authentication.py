@@ -1,19 +1,12 @@
 from dataclasses import replace
-from urllib.parse import parse_qs, urlparse
 
 import pytest
-import requests
-from pytest_bdd import scenarios, then, when
+from pytest_bdd import given, parsers, scenarios, then, when
 
 from .common import *  # noqa: F401,F403
+from .common import _TRIGGER_TEXT, slugify, stub_recipe
 
 scenarios("../features/authentication.feature")
-
-
-def parse_redirect_query(location: str) -> dict[str, str]:
-    """Pull the query parameters (e.g. `state`, `nonce`) off a redirect's Location header."""
-    query = parse_qs(urlparse(location).query)
-    return {key: values[0] for key, values in query.items()}
 
 
 @pytest.fixture
@@ -26,24 +19,46 @@ def config(kitchenowl_config, oidc_server):
     )
 
 
+@given(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
+@when(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
+def recipe_action_triggered(
+    live_server, requests_mock, config, recipe_name, first_ingredient, second_ingredient
+):
+    """Overrides `common.recipe_action_triggered`: this feature is specifically about
+    the pre-login redirect, so the trigger URL is prepared but not visited yet - the
+    scenarios themselves decide whether to request it without following redirects
+    (unauthenticated) or navigate all the way through login (authenticated).
+    """
+    slug = slugify(recipe_name)
+    stub_recipe(
+        requests_mock,
+        config,
+        slug,
+        recipe_name,
+        [{"display": first_ingredient}, {"display": second_ingredient}],
+    )
+    return {"url": f"{live_server.url('/recipes/action')}?slug={slug}"}
+
+
 @then("I am redirected to log in")
-def redirected_to_log_in(triggered):
-    response = triggered["response"]
-    assert response.status_code == 302
-    assert response.location == "/auth/login"
+def redirected_to_log_in(page, triggered):
+    response = page.request.get(triggered["url"], max_redirects=0)
+    assert response.status == 302
+    assert response.headers["location"] == "/auth/login"
 
 
 @then("I see the shopping lists to choose from")
 def see_shopping_lists_to_choose_from(triggered):
-    assert triggered["response"].status_code == 200
+    assert triggered["response"].status == 200
 
 
 @when("I complete login with the identity provider", target_fixture="triggered")
-def complete_login(running_app, triggered):
-    login_response = running_app.get(triggered["response"].location)
-    authorize_response = requests.get(login_response.location, allow_redirects=False, timeout=5)
-    callback_params = parse_redirect_query(authorize_response.headers["Location"])
-
-    callback_response = running_app.get("/auth/callback", query_string=callback_params)
-    final_response = running_app.get(callback_response.location)
-    return {**triggered, "response": final_response}
+def complete_login(page, triggered):
+    """A real navigation to the trigger URL completes the whole login round-trip in one
+    go: mock-oauth2-server's interactive login page is disabled (see
+    `oidc_container.py`), so there's no separate click to drive - the browser follows
+    the bridge's redirect to `/auth/login`, the identity provider's auto-issued
+    authorization code, and the callback back to the originally requested page.
+    """
+    response = page.goto(triggered["url"])
+    return {**triggered, "response": response}
