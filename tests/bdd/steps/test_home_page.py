@@ -1,3 +1,4 @@
+from playwright.sync_api import expect
 from pytest_bdd import scenarios, then, when
 
 from .common import *  # noqa: F401,F403
@@ -13,4 +14,4 @@ def open_home_page(page, live_server):
 
 @then("I see the bridge's title")
 def see_bridge_title(opened_page):
-    assert opened_page.title() == "Mealie ↔ KitchenOwl Bridge"
+    expect(opened_page).to_have_title("Mealie ↔ KitchenOwl Bridge")

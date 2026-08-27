@@ -1,6 +1,7 @@
 from dataclasses import replace
 
 import pytest
+from playwright.sync_api import expect
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from .common import *  # noqa: F401,F403
@@ -68,4 +69,4 @@ def open_recipe_and_trigger_action(page, mealie_server, mealie_recipe):
     )
 )
 def see_bridge_selection_screen(triggered_popup, recipe_name):
-    assert recipe_name in triggered_popup.content()
+    expect(triggered_popup.get_by_text(recipe_name)).to_be_visible()

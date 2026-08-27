@@ -1,5 +1,3 @@
-import re
-
 import pytest
 from playwright.sync_api import expect
 from pytest_bdd import given, parsers, scenarios, then, when
@@ -127,20 +125,12 @@ def recipe_action_triggered_without_quantity(
 
 @then(parsers.parse('I see the shopping lists "{first_list}" and "{second_list}" to choose from'))
 def see_shopping_lists(page, first_list, second_list):
-    body = page.content()
-    assert first_list in body
-    assert second_list in body
+    expect(page.get_by_role("button", name=first_list)).to_be_visible()
+    expect(page.get_by_role("button", name=second_list)).to_be_visible()
 
 
-def _selected_item_choice(body: str, ingredient_name: str) -> str:
-    """Read the pre-selected `item_choice:<name>` option out of the rendered review screen."""
-    select_match = re.search(
-        rf'<select name="item_choice:{re.escape(ingredient_name)}">(.*?)</select>', body, re.DOTALL
-    )
-    assert select_match, f"no item_choice select rendered for {ingredient_name!r}"
-    option_match = re.search(r'value="([^"]*)"\s*selected', select_match.group(1))
-    assert option_match, f"no selected option rendered for {ingredient_name!r}"
-    return option_match.group(1)
+def _ingredient_row(page, ingredient_name: str):
+    return page.get_by_role("group", name=ingredient_name)
 
 
 @given(parsers.parse('I have selected the shopping list "{list_name}"'))
@@ -156,9 +146,8 @@ def select_shopping_list(page, list_name):
     )
 )
 def see_ingredients_pre_selected(page, first_ingredient, second_ingredient):
-    body = page.content()
     for ingredient in (first_ingredient, second_ingredient):
-        assert f'value="{ingredient}" checked' in body
+        expect(_ingredient_row(page, ingredient).get_by_role("checkbox")).to_be_checked()
 
 
 @then(
@@ -168,21 +157,19 @@ def see_ingredients_pre_selected(page, first_ingredient, second_ingredient):
 )
 def see_ingredient_matched(page, kitchenowl_items_by_name, ingredient, item_name):
     expected_item_id = str(kitchenowl_items_by_name[item_name])
-    assert _selected_item_choice(page.content(), ingredient) == expected_item_id
+    item_choice = _ingredient_row(page, ingredient).get_by_test_id("item-choice")
+    expect(item_choice).to_have_value(expected_item_id)
 
 
 @then(parsers.parse('I see the ingredient "{ingredient}" set to create a new KitchenOwl item'))
 def see_ingredient_set_to_create_new(page, ingredient):
-    assert _selected_item_choice(page.content(), ingredient) == "new"
+    item_choice = _ingredient_row(page, ingredient).get_by_test_id("item-choice")
+    expect(item_choice).to_have_value("new")
 
 
 @when(parsers.parse('I deselect the ingredient "{ingredient}"'))
 def deselect_ingredient(page, ingredient):
-    page.get_by_role("checkbox", name=ingredient).uncheck()
-
-
-def _ingredient_row(page, ingredient_name: str):
-    return page.locator(".ingredient-row").filter(has_text=ingredient_name)
+    _ingredient_row(page, ingredient).get_by_role("checkbox").uncheck()
 
 
 @when(
@@ -317,46 +304,39 @@ def ingredient_added_as_new_item(
     assert ingredient in items
 
 
-def _suggested_item_names(body: str) -> set[str]:
-    """Read the item names out of the rendered `_item_search_results.html` fragment.
-
-    The "no matching items" fallback renders a `<div>`, not a `<button
-    class="dropdown-item">`, so it's naturally excluded here rather than
-    needing its own special case.
-    """
-    return {
-        match.strip()
-        for match in re.findall(r'class="dropdown-item"[^>]*>(.*?)</button>', body, re.DOTALL)
-    }
-
-
 @when(
     # `parsers.parse`'s default field type requires at least one character, which
-    # can't match the empty-query scenario's "" - a plain regex allows it.
+    # can't match the empty-query scenario's "" - a plain regex allows it. This
+    # matches Gherkin step text, not HTML, so it's unrelated to locator strategy.
     parsers.re(r'I search the existing KitchenOwl items for "(?P<query>.*)"'),
 )
 def search_existing_items(page, query):
     page.get_by_role("textbox").fill(query)
     # "input changed" is debounced by 200ms before htmx even starts the request.
+    # Settling here (rather than relying on the assertions below to retry) matters
+    # for the "not suggested"/"no items suggested" checks: an assertion that a
+    # button never appears would otherwise trivially pass before the search has
+    # even happened.
     page.wait_for_timeout(250)
     _wait_for_htmx_idle(page)
 
 
 @then(parsers.parse('I see the KitchenOwl items "{first_item}" and "{second_item}" suggested'))
 def see_items_suggested(page, first_item, second_item):
-    assert {first_item, second_item} <= _suggested_item_names(page.content())
+    expect(page.get_by_role("button", name=first_item, exact=True)).to_be_visible()
+    expect(page.get_by_role("button", name=second_item, exact=True)).to_be_visible()
 
 
 @then(parsers.parse('I see the KitchenOwl item "{item_name}" suggested'))
 def see_item_suggested(page, item_name):
-    assert item_name in _suggested_item_names(page.content())
+    expect(page.get_by_role("button", name=item_name, exact=True)).to_be_visible()
 
 
 @then(parsers.parse('I do not see the KitchenOwl item "{item_name}" suggested'))
 def do_not_see_item_suggested(page, item_name):
-    assert item_name not in _suggested_item_names(page.content())
+    expect(page.get_by_role("button", name=item_name, exact=True)).not_to_be_visible()
 
 
 @then("I see no KitchenOwl items suggested")
 def see_no_items_suggested(page):
-    assert _suggested_item_names(page.content()) == set()
+    expect(page.get_by_text("No matching items")).to_be_visible()
