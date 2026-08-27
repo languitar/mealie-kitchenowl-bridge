@@ -20,7 +20,7 @@ Dependencies are managed with [uv](https://docs.astral.sh/uv/), pinned via `uv.l
 ```bash
 uv sync
 cp .env.example .env  # then fill in real Mealie/KitchenOwl URLs and tokens
-uv run playwright install chromium  # only needed for browser-based tests
+uv run playwright install chromium  # needed to run the acceptance (BDD) test suite
 ```
 
 ## Configuration
@@ -79,37 +79,35 @@ uv run flask --app bridge.app:create_app run
 ## Testing
 
 ```bash
-uv run pytest              # unit, integration, and Flask-test-client BDD scenarios
-uv run pytest -m browser   # browser-driven BDD scenarios (needs `playwright install chromium`)
+uv run pytest
 uv run ruff check .
 ```
 
 Unit and integration tests are plain pytest with no external services. Acceptance
-(BDD) scenarios run through a real Flask test client; how the two external services
-are faked differs:
+(BDD) scenarios drive a real Chromium browser via Playwright against a real Flask
+server - so `uv run playwright install chromium` (see Setup above) is required for
+the full suite, not just a subset - accepting the slower runtime in exchange for
+exercising real DOM rendering and client-side JS (e.g. htmx) rather than bypassing
+them. How the two external services are faked differs:
 
 - **Mealie** is stubbed with `requests_mock` for most scenarios - tests never call
   a live Mealie there.
 - The **OIDC provider** is a real identity provider in a container
   (`mock-oauth2-server`, `tests/bdd/oidc_container.py`), like KitchenOwl below, so
   the app's actual Authlib login code runs end to end against a real discovery
-  document, token endpoint, and JWKS - with its interactive login page disabled so
-  the flow can still be driven with plain HTTP calls.
+  document, token endpoint, and JWKS - with its interactive login page disabled, so
+  a browser navigating through it completes the whole authorization-code flow in a
+  single hop, with nothing to click.
 - **KitchenOwl** scenarios run against a **real KitchenOwl instance in a
   container** instead of a mock, so tests can't drift from what KitchenOwl actually
-  does. This is why the default suite needs a working local Docker (or Podman, see
-  below) daemon - the KitchenOwl image is pulled and started automatically, no
-  manual `docker compose up` needed for tests.
+  does. This is why the suite needs a working local Docker (or Podman, see below)
+  daemon - the KitchenOwl image is pulled and started automatically, no manual
+  `docker compose up` needed for tests.
 
-Some behavior (real DOM rendering, client-side JS) can only be
-verified through an actual browser rather than the Flask test client. Those
-scenarios are tagged `@browser` and excluded from the default `uv run pytest` run
-since they need Chromium installed; run them explicitly with
-`uv run pytest -m browser` after `uv run playwright install chromium`. One such
-scenario also runs against a **real Mealie instance in a container** (like
+One scenario also runs against a **real Mealie instance in a container** (like
 KitchenOwl's), driving an actual browser click through Mealie's own UI - this is
-the only way to catch bugs in how Mealie's frontend actually triggers the
-bridge (see AGENTS.md), which a direct HTTP call to `/recipes/action` can't.
+the only way to catch bugs in how Mealie's frontend actually triggers the bridge
+(see AGENTS.md), which a direct HTTP call to `/recipes/action` can't.
 
 ### Using Podman instead of Docker
 

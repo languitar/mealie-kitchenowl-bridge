@@ -30,18 +30,27 @@ Every new feature request is turned into an acceptance test *before* it's implem
    scenarios("../features/<capability>.feature")
    ```
    Check `tests/bdd/steps/common.py` first for reusable `Given`/`When`/`Then` steps
-   (e.g. `"the bridge is running"`). Only add a new step there once a *second*
-   scenario needs it verbatim — keep single-use steps local to their own module.
-   Acceptance scenarios run against Flask's test client (`client`/`running_app`
-   fixtures). If a scenario touches KitchenOwl, point its module's `config` fixture
-   at the `kitchenowl_config` fixture (`tests/bdd/conftest.py`; see
-   `tests/bdd/steps/test_recipe_to_shopping_list.py` for the pattern) rather than
-   touching the shared one in `tests/conftest.py`, so scenarios that don't need
-   KitchenOwl (e.g. `health_check`, `home_page`) stay fast. Tag browser-only
-   scenarios `@browser` and write their steps against the `page`/`live_server`
-   fixtures — see `tests/bdd/features/home_page.feature` /
-   `tests/bdd/steps/test_home_page.py` for the pattern. See README.md's Testing
-   section for how Mealie/KitchenOwl are faked and how to run each tier.
+   (e.g. `"the bridge is running"`, `"the bridge is running as a logged-in user"`).
+   Only add a new step there once a *second* scenario needs it verbatim — keep
+   single-use steps local to their own module. Every scenario drives a real
+   Chromium browser via Playwright's `page`/`live_server`/`context` fixtures
+   (`tests/bdd/conftest.py`) against a real Flask server — there's no separate
+   non-browser tier. If a scenario touches KitchenOwl, point its module's `config`
+   fixture at the `kitchenowl_config` fixture rather than touching the shared one
+   in `tests/conftest.py`, so scenarios that don't need KitchenOwl (e.g.
+   `health_check`) stay fast.
+
+   Interact with the page through Playwright locators, in order of preference:
+   role/label/text (`get_by_role`, `get_by_label`, `get_by_text`), falling back to
+   `data-testid` only for elements with no meaningful accessible role (e.g. a
+   JS-managed hidden `<select>` — see `select_ingredients.html`). Avoid scraping
+   rendered HTML with regexes or reaching for a CSS/XPath selector when a
+   role/label-based one would work. If a template doesn't expose an accessible way
+   to target something a scenario needs, add one (an `aria-label`, an associated
+   `<label>`, or `role="group"` to scope a repeated block) rather than writing a
+   brittle selector against it. See `tests/bdd/steps/test_recipe_to_shopping_list.py`
+   for the pattern. See README.md's Testing section for how Mealie/KitchenOwl are
+   faked.
 3. **Implement the application code** under `src/bridge/` until the scenario passes.
    Wire real logic into the existing placeholder blueprints/clients rather than
    creating new top-level modules where an obvious one already exists:
