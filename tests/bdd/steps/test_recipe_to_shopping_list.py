@@ -1,29 +1,28 @@
 import re
 
 import pytest
+from playwright.sync_api import expect
 from pytest_bdd import given, parsers, scenarios, then, when
-from werkzeug.datastructures import MultiDict
 
 from .common import *  # noqa: F401,F403
-from .common import _LOGGED_IN_USER, slugify, stub_recipe
+from .common import slugify, stub_recipe
 
 scenarios("../features/recipe_to_shopping_list.feature")
+
+# htmx adds these classes for the duration of a request/settle/swap cycle - waiting
+# for none of them to be present is htmx's own recommended way to know an
+# htmx-driven update has fully finished, since the response arriving isn't the same
+# moment as htmx finishing applying it to the DOM (bigskysoftware/htmx#2360).
+_HTMX_TRANSIENT_CLASSES = ".htmx-request, .htmx-settling, .htmx-swapping, .htmx-added"
+
+
+def _wait_for_htmx_idle(page):
+    expect(page.locator(_HTMX_TRANSIENT_CLASSES)).to_have_count(0)
 
 
 @pytest.fixture
 def config(kitchenowl_config):
     return kitchenowl_config
-
-
-@given("the bridge is running as a logged-in user", target_fixture="running_app")
-def bridge_is_running_as_logged_in_user(client):
-    """Overrides `common.bridge_is_running_as_logged_in_user` (now browser-based):
-    this feature still drives through the Flask test client, until it's converted to
-    real browser interactions.
-    """
-    with client.session_transaction() as flask_session:
-        flask_session["user"] = _LOGGED_IN_USER
-    return client
 
 
 @given(
@@ -83,10 +82,9 @@ def _split_quantity(quantity: str) -> tuple[float, str | None]:
         'a Mealie recipe action is triggered for the recipe "{recipe_name}" '
         'with the ingredient "{ingredient_name}" and quantity "{quantity}"'
     ),
-    target_fixture="triggered",
 )
 def recipe_action_triggered_with_quantity(
-    running_app, requests_mock, config, recipe_name, ingredient_name, quantity
+    page, live_server, requests_mock, config, recipe_name, ingredient_name, quantity
 ):
     amount, unit_name = _split_quantity(quantity)
     slug = slugify(recipe_name)
@@ -104,11 +102,7 @@ def recipe_action_triggered_with_quantity(
             }
         ],
     )
-    response = running_app.get(
-        "/recipes/action",
-        query_string={"slug": slug},
-    )
-    return {"response": response, "ingredients": [{"name": ingredient_name, "quantity": quantity}]}
+    page.goto(f"{live_server.url('/recipes/action')}?slug={slug}")
 
 
 @given(
@@ -116,10 +110,9 @@ def recipe_action_triggered_with_quantity(
         'a Mealie recipe action is triggered for the recipe "{recipe_name}" '
         'with the ingredient "{ingredient_name}" and no quantity'
     ),
-    target_fixture="triggered",
 )
 def recipe_action_triggered_without_quantity(
-    running_app, requests_mock, config, recipe_name, ingredient_name
+    page, live_server, requests_mock, config, recipe_name, ingredient_name
 ):
     slug = slugify(recipe_name)
     stub_recipe(
@@ -129,33 +122,14 @@ def recipe_action_triggered_without_quantity(
         recipe_name,
         [{"display": ingredient_name, "food": {"name": ingredient_name}}],
     )
-    response = running_app.get(
-        "/recipes/action",
-        query_string={"slug": slug},
-    )
-    return {"response": response, "ingredients": [{"name": ingredient_name, "quantity": None}]}
+    page.goto(f"{live_server.url('/recipes/action')}?slug={slug}")
 
 
 @then(parsers.parse('I see the shopping lists "{first_list}" and "{second_list}" to choose from'))
-def see_shopping_lists(triggered, first_list, second_list):
-    body = triggered["response"].get_data(as_text=True)
+def see_shopping_lists(page, first_list, second_list):
+    body = page.content()
     assert first_list in body
     assert second_list in body
-
-
-def _ingredients_form_data(ingredients) -> MultiDict:
-    """Build the same `ingredient`/`quantity:<name>` fields the templates emit.
-
-    Quantity travels in its own per-name field rather than a same-order
-    parallel list, so it survives an ingredient being left out (deselected)
-    without desynchronizing name/quantity pairs - see `_ingredients_from_form`
-    in `bridge/routes/review.py`.
-    """
-    data = MultiDict()
-    for ingredient in ingredients:
-        data.add("ingredient", ingredient["name"])
-        data.add(f"quantity:{ingredient['name']}", ingredient["quantity"] or "")
-    return data
 
 
 def _selected_item_choice(body: str, ingredient_name: str) -> str:
@@ -169,27 +143,11 @@ def _selected_item_choice(body: str, ingredient_name: str) -> str:
     return option_match.group(1)
 
 
-def _select_shopping_list(running_app, triggered, shopping_lists_by_name, list_name):
-    list_id = shopping_lists_by_name[list_name]
-    response = running_app.post(
-        f"/shopping-lists/{list_id}",
-        data=_ingredients_form_data(triggered["ingredients"]),
-    )
-    body = response.get_data(as_text=True)
-    ingredients = {i["name"]: i["quantity"] for i in triggered["ingredients"]}
-    item_choices = {name: _selected_item_choice(body, name) for name in ingredients}
-    return {
-        "response": response,
-        "list_id": list_id,
-        "ingredients": ingredients,
-        "item_choices": item_choices,
-    }
-
-
-@given(parsers.parse('I have selected the shopping list "{list_name}"'), target_fixture="selection")
-@when(parsers.parse('I select the shopping list "{list_name}"'), target_fixture="selection")
-def select_shopping_list(running_app, triggered, shopping_lists_by_name, list_name):
-    return _select_shopping_list(running_app, triggered, shopping_lists_by_name, list_name)
+@given(parsers.parse('I have selected the shopping list "{list_name}"'))
+@when(parsers.parse('I select the shopping list "{list_name}"'))
+def select_shopping_list(page, list_name):
+    page.get_by_role("button", name=list_name).click()
+    page.wait_for_load_state("networkidle")
 
 
 @then(
@@ -197,8 +155,8 @@ def select_shopping_list(running_app, triggered, shopping_lists_by_name, list_na
         'I see the ingredients "{first_ingredient}" and "{second_ingredient}", all pre-selected'
     )
 )
-def see_ingredients_pre_selected(selection, first_ingredient, second_ingredient):
-    body = selection["response"].get_data(as_text=True)
+def see_ingredients_pre_selected(page, first_ingredient, second_ingredient):
+    body = page.content()
     for ingredient in (first_ingredient, second_ingredient):
         assert f'value="{ingredient}" checked' in body
 
@@ -208,21 +166,23 @@ def see_ingredients_pre_selected(selection, first_ingredient, second_ingredient)
         'I see the ingredient "{ingredient}" matched to the existing KitchenOwl item "{item_name}"'
     )
 )
-def see_ingredient_matched(selection, kitchenowl_items_by_name, ingredient, item_name):
-    body = selection["response"].get_data(as_text=True)
-    assert _selected_item_choice(body, ingredient) == str(kitchenowl_items_by_name[item_name])
+def see_ingredient_matched(page, kitchenowl_items_by_name, ingredient, item_name):
+    expected_item_id = str(kitchenowl_items_by_name[item_name])
+    assert _selected_item_choice(page.content(), ingredient) == expected_item_id
 
 
 @then(parsers.parse('I see the ingredient "{ingredient}" set to create a new KitchenOwl item'))
-def see_ingredient_set_to_create_new(selection, ingredient):
-    body = selection["response"].get_data(as_text=True)
-    assert _selected_item_choice(body, ingredient) == "new"
+def see_ingredient_set_to_create_new(page, ingredient):
+    assert _selected_item_choice(page.content(), ingredient) == "new"
 
 
-@when(parsers.parse('I deselect the ingredient "{ingredient}"'), target_fixture="selection")
-def deselect_ingredient(selection, ingredient):
-    selection["ingredients"].pop(ingredient, None)
-    return selection
+@when(parsers.parse('I deselect the ingredient "{ingredient}"'))
+def deselect_ingredient(page, ingredient):
+    page.get_by_role("checkbox", name=ingredient).uncheck()
+
+
+def _ingredient_row(page, ingredient_name: str):
+    return page.locator(".ingredient-row").filter(has_text=ingredient_name)
 
 
 @when(
@@ -230,38 +190,37 @@ def deselect_ingredient(selection, ingredient):
         'I select the existing KitchenOwl item "{item_name}" for the ingredient '
         '"{ingredient_name}"'
     ),
-    target_fixture="selection",
 )
-def select_existing_item_for_ingredient(
-    selection, kitchenowl_items_by_name, item_name, ingredient_name
-):
-    selection["item_choices"][ingredient_name] = str(kitchenowl_items_by_name[item_name])
-    return selection
+def select_existing_item_for_ingredient(page, item_name, ingredient_name):
+    row = _ingredient_row(page, ingredient_name)
+    search_input = row.get_by_role("textbox")
+    # A pre-filled search box (from an existing match) fires its own htmx request
+    # on focus (no debounce), using the stale value - let that settle before typing
+    # the real query, so it can't race with (and overwrite) the one below.
+    search_input.click()
+    _wait_for_htmx_idle(page)
+    search_input.fill(item_name)
+    # "input changed" is debounced by 200ms before htmx even starts the request.
+    page.wait_for_timeout(250)
+    _wait_for_htmx_idle(page)
+    suggestion = row.get_by_role("button", name=item_name, exact=True)
+    expect(suggestion).to_be_visible()
+    suggestion.click()
 
 
 @when(
     parsers.parse(
         'I choose to create a new KitchenOwl item for the ingredient "{ingredient_name}"'
     ),
-    target_fixture="selection",
 )
-def choose_new_item_for_ingredient(selection, ingredient_name):
-    selection["item_choices"][ingredient_name] = "new"
-    return selection
+def choose_new_item_for_ingredient(page, ingredient_name):
+    _ingredient_row(page, ingredient_name).get_by_role("textbox").fill("")
 
 
-@when("I confirm the ingredient selection", target_fixture="push_response")
-def confirm_ingredient_selection(running_app, selection):
-    ingredients = [
-        {"name": name, "quantity": quantity} for name, quantity in selection["ingredients"].items()
-    ]
-    data = _ingredients_form_data(ingredients)
-    for name in selection["ingredients"]:
-        data.add(f"item_choice:{name}", selection["item_choices"].get(name, "new"))
-    return running_app.post(
-        f"/shopping-lists/{selection['list_id']}/confirm",
-        data=data,
-    )
+@when("I confirm the ingredient selection")
+def confirm_ingredient_selection(page):
+    page.get_by_role("button", name="Add to shopping list").click()
+    page.wait_for_load_state("networkidle")
 
 
 def _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name) -> dict:
@@ -277,14 +236,12 @@ def _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, l
     )
 )
 def ingredients_added_to_shopping_list(
-    push_response,
     kitchenowl_household,
     shopping_lists_by_name,
     list_name,
     first_ingredient,
     second_ingredient,
 ):
-    assert push_response.status_code == 200
     items = _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name)
     assert items.keys() == {first_ingredient, second_ingredient}
 
@@ -296,9 +253,8 @@ def ingredients_added_to_shopping_list(
     )
 )
 def only_ingredient_added_to_shopping_list(
-    push_response, kitchenowl_household, shopping_lists_by_name, list_name, ingredient
+    kitchenowl_household, shopping_lists_by_name, list_name, ingredient
 ):
-    assert push_response.status_code == 200
     items = _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name)
     assert items.keys() == {ingredient}
 
@@ -310,9 +266,8 @@ def only_ingredient_added_to_shopping_list(
     )
 )
 def ingredient_added_with_description(
-    push_response, kitchenowl_household, shopping_lists_by_name, list_name, ingredient, description
+    kitchenowl_household, shopping_lists_by_name, list_name, ingredient, description
 ):
-    assert push_response.status_code == 200
     items = _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name)
     assert items[ingredient]["description"] == description
 
@@ -324,9 +279,8 @@ def ingredient_added_with_description(
     )
 )
 def ingredient_added_without_description(
-    push_response, kitchenowl_household, shopping_lists_by_name, list_name, ingredient
+    kitchenowl_household, shopping_lists_by_name, list_name, ingredient
 ):
-    assert push_response.status_code == 200
     items = _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name)
     assert not items[ingredient].get("description")
 
@@ -338,7 +292,6 @@ def ingredient_added_without_description(
     )
 )
 def ingredient_added_as_existing_item(
-    push_response,
     kitchenowl_household,
     shopping_lists_by_name,
     kitchenowl_items_by_name,
@@ -346,7 +299,6 @@ def ingredient_added_as_existing_item(
     ingredient,
     item_name,
 ):
-    assert push_response.status_code == 200
     items = _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name)
     assert ingredient not in items
     assert items[item_name]["id"] == kitchenowl_items_by_name[item_name]
@@ -359,9 +311,8 @@ def ingredient_added_as_existing_item(
     )
 )
 def ingredient_added_as_new_item(
-    push_response, kitchenowl_household, shopping_lists_by_name, list_name, ingredient
+    kitchenowl_household, shopping_lists_by_name, list_name, ingredient
 ):
-    assert push_response.status_code == 200
     items = _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name)
     assert ingredient in items
 
@@ -383,28 +334,29 @@ def _suggested_item_names(body: str) -> set[str]:
     # `parsers.parse`'s default field type requires at least one character, which
     # can't match the empty-query scenario's "" - a plain regex allows it.
     parsers.re(r'I search the existing KitchenOwl items for "(?P<query>.*)"'),
-    target_fixture="search_results",
 )
-def search_existing_items(running_app, query):
-    response = running_app.get("/items/search", query_string={"q": query})
-    return response.get_data(as_text=True)
+def search_existing_items(page, query):
+    page.get_by_role("textbox").fill(query)
+    # "input changed" is debounced by 200ms before htmx even starts the request.
+    page.wait_for_timeout(250)
+    _wait_for_htmx_idle(page)
 
 
 @then(parsers.parse('I see the KitchenOwl items "{first_item}" and "{second_item}" suggested'))
-def see_items_suggested(search_results, first_item, second_item):
-    assert {first_item, second_item} <= _suggested_item_names(search_results)
+def see_items_suggested(page, first_item, second_item):
+    assert {first_item, second_item} <= _suggested_item_names(page.content())
 
 
 @then(parsers.parse('I see the KitchenOwl item "{item_name}" suggested'))
-def see_item_suggested(search_results, item_name):
-    assert item_name in _suggested_item_names(search_results)
+def see_item_suggested(page, item_name):
+    assert item_name in _suggested_item_names(page.content())
 
 
 @then(parsers.parse('I do not see the KitchenOwl item "{item_name}" suggested'))
-def do_not_see_item_suggested(search_results, item_name):
-    assert item_name not in _suggested_item_names(search_results)
+def do_not_see_item_suggested(page, item_name):
+    assert item_name not in _suggested_item_names(page.content())
 
 
 @then("I see no KitchenOwl items suggested")
-def see_no_items_suggested(search_results):
-    assert _suggested_item_names(search_results) == set()
+def see_no_items_suggested(page):
+    assert _suggested_item_names(page.content()) == set()

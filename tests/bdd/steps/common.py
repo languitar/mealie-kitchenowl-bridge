@@ -61,7 +61,8 @@ def stub_recipe(
 
 
 def _trigger_recipe_action(
-    running_app,
+    page,
+    live_server,
     requests_mock,
     config,
     recipe_name,
@@ -76,17 +77,7 @@ def _trigger_recipe_action(
         recipe_name,
         [{"display": first_ingredient}, {"display": second_ingredient}],
     )
-    response = running_app.get(
-        "/recipes/action",
-        query_string={"slug": slug},
-    )
-    return {
-        "response": response,
-        "ingredients": [
-            {"name": first_ingredient, "quantity": None},
-            {"name": second_ingredient, "quantity": None},
-        ],
-    }
+    page.goto(f"{live_server.url('/recipes/action')}?slug={slug}")
 
 
 _TRIGGER_TEXT = (
@@ -95,18 +86,20 @@ _TRIGGER_TEXT = (
 )
 
 
-@given(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
-@when(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
+@given(parsers.parse(_TRIGGER_TEXT))
+@when(parsers.parse(_TRIGGER_TEXT))
 def recipe_action_triggered(
-    running_app,
+    page,
+    live_server,
     requests_mock,
     config,
     recipe_name,
     first_ingredient,
     second_ingredient,
 ):
-    return _trigger_recipe_action(
-        running_app,
+    _trigger_recipe_action(
+        page,
+        live_server,
         requests_mock,
         config,
         recipe_name,
