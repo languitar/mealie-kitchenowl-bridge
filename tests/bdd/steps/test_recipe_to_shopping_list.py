@@ -136,8 +136,10 @@ def _ingredient_row(page, ingredient_name: str):
 @given(parsers.parse('I have selected the shopping list "{list_name}"'))
 @when(parsers.parse('I select the shopping list "{list_name}"'))
 def select_shopping_list(page, list_name):
+    # `click()` already waits for the navigation it triggers to complete; the
+    # locators/expect() calls in later steps wait for the resulting page's
+    # elements themselves, so no need for `networkidle` on top of that.
     page.get_by_role("button", name=list_name).click()
-    page.wait_for_load_state("networkidle")
 
 
 @then(
@@ -206,8 +208,10 @@ def choose_new_item_for_ingredient(page, ingredient_name):
 
 @when("I confirm the ingredient selection")
 def confirm_ingredient_selection(page):
+    # `click()` already waits for a navigation it triggers to complete (i.e. the
+    # POST response, and with it the server-side KitchenOwl write, has landed) -
+    # no need for `networkidle` on top, which has a mandatory ~500ms settle floor.
     page.get_by_role("button", name="Add to shopping list").click()
-    page.wait_for_load_state("networkidle")
 
 
 def _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name) -> dict:
