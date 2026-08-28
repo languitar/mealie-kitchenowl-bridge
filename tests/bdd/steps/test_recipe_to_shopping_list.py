@@ -3,7 +3,6 @@ from playwright.sync_api import expect
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from .common import *  # noqa: F401,F403
-from .common import slugify, stub_recipe
 
 scenarios("../features/recipe_to_shopping_list.feature")
 
@@ -70,59 +69,6 @@ def kitchenowl_has_no_item(kitchenowl_household, item_name):
     assert not any(item["name"].casefold() == item_name.casefold() for item in items)
 
 
-def _split_quantity(quantity: str) -> tuple[float, str | None]:
-    amount, _, unit_name = quantity.partition(" ")
-    return float(amount), unit_name or None
-
-
-@given(
-    parsers.parse(
-        'a Mealie recipe action is triggered for the recipe "{recipe_name}" '
-        'with the ingredient "{ingredient_name}" and quantity "{quantity}"'
-    ),
-)
-def recipe_action_triggered_with_quantity(
-    page, live_server, requests_mock, config, recipe_name, ingredient_name, quantity
-):
-    amount, unit_name = _split_quantity(quantity)
-    slug = slugify(recipe_name)
-    stub_recipe(
-        requests_mock,
-        config,
-        slug,
-        recipe_name,
-        [
-            {
-                "display": f"{quantity} {ingredient_name}",
-                "food": {"name": ingredient_name},
-                "quantity": amount,
-                "unit": {"name": unit_name} if unit_name else None,
-            }
-        ],
-    )
-    page.goto(f"{live_server.url('/recipes/action')}?slug={slug}")
-
-
-@given(
-    parsers.parse(
-        'a Mealie recipe action is triggered for the recipe "{recipe_name}" '
-        'with the ingredient "{ingredient_name}" and no quantity'
-    ),
-)
-def recipe_action_triggered_without_quantity(
-    page, live_server, requests_mock, config, recipe_name, ingredient_name
-):
-    slug = slugify(recipe_name)
-    stub_recipe(
-        requests_mock,
-        config,
-        slug,
-        recipe_name,
-        [{"display": ingredient_name, "food": {"name": ingredient_name}}],
-    )
-    page.goto(f"{live_server.url('/recipes/action')}?slug={slug}")
-
-
 @then(parsers.parse('I see the shopping lists "{first_list}" and "{second_list}" to choose from'))
 def see_shopping_lists(page, first_list, second_list):
     expect(page.get_by_role("button", name=first_list)).to_be_visible()
@@ -150,6 +96,20 @@ def select_shopping_list(page, list_name):
 def see_ingredients_pre_selected(page, first_ingredient, second_ingredient):
     for ingredient in (first_ingredient, second_ingredient):
         expect(_ingredient_row(page, ingredient).get_by_role("checkbox")).to_be_checked()
+
+
+def _ingredient_quantity(page, ingredient_name: str):
+    return _ingredient_row(page, ingredient_name).get_by_test_id("ingredient-quantity")
+
+
+@then(parsers.parse('I see the ingredient "{ingredient}" with the quantity "{quantity}"'))
+def see_ingredient_quantity(page, ingredient, quantity):
+    expect(_ingredient_quantity(page, ingredient)).to_have_text(f"({quantity})")
+
+
+@then(parsers.parse('I see the ingredient "{ingredient}" with no quantity shown'))
+def see_ingredient_no_quantity(page, ingredient):
+    expect(_ingredient_quantity(page, ingredient)).not_to_be_attached()
 
 
 @then(
@@ -235,6 +195,19 @@ def ingredients_added_to_shopping_list(
 ):
     items = _shopping_list_items_by_name(kitchenowl_household, shopping_lists_by_name, list_name)
     assert items.keys() == {first_ingredient, second_ingredient}
+
+
+@then("I am redirected to the shopping list in KitchenOwl")
+def redirected_to_kitchenowl_shopping_list(page, kitchenowl_household):
+    """KitchenOwl's frontend has no deep link to a specific list (see
+    `push_to_shopping_list`), so this only checks the general per-household items
+    page - checked right as the browser lands there, before KitchenOwl's own
+    frontend has bootstrapped enough to client-side redirect an unauthenticated
+    browser onward to its login page.
+    """
+    expect(page).to_have_url(
+        f"{kitchenowl_household.server.base_url}/household/{kitchenowl_household.id}/items"
+    )
 
 
 @then(

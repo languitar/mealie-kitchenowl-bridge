@@ -13,6 +13,9 @@
         <label class="checkbox">
           <input type="checkbox" name="ingredient" value="{{ ingredient.name }}" checked />
           {{ ingredient.name }}
+          {% if ingredient.quantity %}
+          <span class="has-text-grey" data-testid="ingredient-quantity">({{ ingredient.quantity }})</span>
+          {% endif %}
         </label>
       </div>
       <div class="column">

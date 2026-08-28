@@ -4,7 +4,7 @@ import pytest
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from .common import *  # noqa: F401,F403
-from .common import _TRIGGER_TEXT, slugify, stub_recipe
+from .common import _TRIGGER_TEXT, build_ingredient, slugify, stub_recipe
 
 scenarios("../features/authentication.feature")
 
@@ -21,22 +21,15 @@ def config(kitchenowl_config, oidc_server):
 
 @given(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
 @when(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
-def recipe_action_triggered(
-    live_server, requests_mock, config, recipe_name, first_ingredient, second_ingredient
-):
+def recipe_action_triggered(live_server, requests_mock, config, recipe_name, datatable):
     """Overrides `common.recipe_action_triggered`: this feature is specifically about
     the pre-login redirect, so the trigger URL is prepared but not visited yet - the
     scenarios themselves decide whether to request it without following redirects
     (unauthenticated) or navigate all the way through login (authenticated).
     """
+    recipe_ingredients = [build_ingredient(quantity, name) for quantity, name in datatable]
     slug = slugify(recipe_name)
-    stub_recipe(
-        requests_mock,
-        config,
-        slug,
-        recipe_name,
-        [{"display": first_ingredient}, {"display": second_ingredient}],
-    )
+    stub_recipe(requests_mock, config, slug, recipe_name, recipe_ingredients)
     return {"url": f"{live_server.url('/recipes/action')}?slug={slug}"}
 
 

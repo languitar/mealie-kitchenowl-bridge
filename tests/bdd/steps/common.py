@@ -60,49 +60,36 @@ def stub_recipe(
     )
 
 
-def _trigger_recipe_action(
-    page,
-    live_server,
-    requests_mock,
-    config,
-    recipe_name,
-    first_ingredient,
-    second_ingredient,
-):
-    slug = slugify(recipe_name)
-    stub_recipe(
-        requests_mock,
-        config,
-        slug,
-        recipe_name,
-        [{"display": first_ingredient}, {"display": second_ingredient}],
-    )
-    page.goto(f"{live_server.url('/recipes/action')}?slug={slug}")
+def _split_quantity(quantity: str) -> tuple[float, str | None]:
+    amount, _, unit_name = quantity.partition(" ")
+    return float(amount), unit_name or None
+
+
+def build_ingredient(quantity: str, name: str) -> dict:
+    """Build a `recipeIngredient` dict for `stub_recipe`, as parsed from one row of a
+    trigger step's data table (an empty `quantity` cell means no quantity).
+    """
+    if not quantity:
+        return {"display": name, "food": {"name": name}}
+    amount, unit_name = _split_quantity(quantity)
+    return {
+        "display": f"{quantity} {name}",
+        "food": {"name": name},
+        "quantity": amount,
+        "unit": {"name": unit_name} if unit_name else None,
+    }
 
 
 _TRIGGER_TEXT = (
     'a Mealie recipe action is triggered for the recipe "{recipe_name}" '
-    'with the ingredients "{first_ingredient}" and "{second_ingredient}"'
+    "with the ingredients:"
 )
 
 
 @given(parsers.parse(_TRIGGER_TEXT))
 @when(parsers.parse(_TRIGGER_TEXT))
-def recipe_action_triggered(
-    page,
-    live_server,
-    requests_mock,
-    config,
-    recipe_name,
-    first_ingredient,
-    second_ingredient,
-):
-    _trigger_recipe_action(
-        page,
-        live_server,
-        requests_mock,
-        config,
-        recipe_name,
-        first_ingredient,
-        second_ingredient,
-    )
+def recipe_action_triggered(page, live_server, requests_mock, config, recipe_name, datatable):
+    recipe_ingredients = [build_ingredient(quantity, name) for quantity, name in datatable]
+    slug = slugify(recipe_name)
+    stub_recipe(requests_mock, config, slug, recipe_name, recipe_ingredients)
+    page.goto(f"{live_server.url('/recipes/action')}?slug={slug}")
