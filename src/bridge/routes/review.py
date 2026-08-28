@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, render_template, request
+from flask import Blueprint, current_app, redirect, render_template, request
 from werkzeug.datastructures import MultiDict
 
 from bridge.clients.kitchenowl import KitchenOwlClient
@@ -93,6 +93,13 @@ def search_items():
 
 @review_bp.post("/shopping-lists/<int:list_id>/confirm")
 def push_to_shopping_list(list_id: int):
+    """Push the selected ingredients, then send the user to KitchenOwl's own list.
+
+    KitchenOwl's frontend has no deep link to a specific shopping list - its
+    `/household/<id>/items` page always opens on whichever list the user last had
+    selected there - so this can only land on that general page, not the one just
+    pushed to.
+    """
     ingredients = _ingredients_from_form(request.form)
     client = _kitchenowl_client()
     for ingredient in ingredients:
@@ -100,8 +107,5 @@ def push_to_shopping_list(list_id: int):
         item_id = int(choice) if choice != _NEW_ITEM_CHOICE else None
         client.add_shopping_list_item(list_id, ingredient.name, ingredient.quantity, item_id)
 
-    return render_template(
-        "shopping_list_confirmation.html",
-        shopping_list_name=_shopping_list_name(client, list_id),
-        ingredients=ingredients,
-    )
+    config = current_app.config["BRIDGE_CONFIG"]
+    return redirect(f"{config.kitchenowl_url}/household/{config.kitchenowl_household_id}/items")

@@ -32,6 +32,12 @@ Feature: Push recipe ingredients to a KitchenOwl shopping list
     When I confirm the ingredient selection
     Then the ingredients "Tomatoes" and "Basil" are added to the "Groceries" shopping list in KitchenOwl
 
+  Scenario: Confirming the ingredient selection redirects to the KitchenOwl shopping list
+    Given a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients "Tomatoes" and "Basil"
+    And I have selected the shopping list "Groceries"
+    When I confirm the ingredient selection
+    Then I am redirected to the shopping list in KitchenOwl
+
   Scenario: Deselecting an ingredient excludes it from the shopping list push
     Given a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients "Tomatoes" and "Basil"
     And I have selected the shopping list "Groceries"

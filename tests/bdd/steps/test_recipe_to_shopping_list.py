@@ -251,6 +251,19 @@ def ingredients_added_to_shopping_list(
     assert items.keys() == {first_ingredient, second_ingredient}
 
 
+@then("I am redirected to the shopping list in KitchenOwl")
+def redirected_to_kitchenowl_shopping_list(page, kitchenowl_household):
+    """KitchenOwl's frontend has no deep link to a specific list (see
+    `push_to_shopping_list`), so this only checks the general per-household items
+    page - checked right as the browser lands there, before KitchenOwl's own
+    frontend has bootstrapped enough to client-side redirect an unauthenticated
+    browser onward to its login page.
+    """
+    expect(page).to_have_url(
+        f"{kitchenowl_household.server.base_url}/household/{kitchenowl_household.id}/items"
+    )
+
+
 @then(
     parsers.parse(
         'only the ingredient "{ingredient}" is added to the "{list_name}" shopping list '
