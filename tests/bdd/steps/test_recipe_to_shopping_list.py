@@ -152,6 +152,20 @@ def see_ingredients_pre_selected(page, first_ingredient, second_ingredient):
         expect(_ingredient_row(page, ingredient).get_by_role("checkbox")).to_be_checked()
 
 
+def _ingredient_quantity(page, ingredient_name: str):
+    return _ingredient_row(page, ingredient_name).get_by_test_id("ingredient-quantity")
+
+
+@then(parsers.parse('I see the ingredient "{ingredient}" with the quantity "{quantity}"'))
+def see_ingredient_quantity(page, ingredient, quantity):
+    expect(_ingredient_quantity(page, ingredient)).to_have_text(f"({quantity})")
+
+
+@then(parsers.parse('I see the ingredient "{ingredient}" with no quantity shown'))
+def see_ingredient_no_quantity(page, ingredient):
+    expect(_ingredient_quantity(page, ingredient)).not_to_be_attached()
+
+
 @then(
     parsers.parse(
         'I see the ingredient "{ingredient}" matched to the existing KitchenOwl item "{item_name}"'
