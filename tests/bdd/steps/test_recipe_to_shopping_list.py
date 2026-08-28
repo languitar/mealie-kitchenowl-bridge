@@ -3,7 +3,6 @@ from playwright.sync_api import expect
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from .common import *  # noqa: F401,F403
-from .common import slugify, stub_recipe
 
 scenarios("../features/recipe_to_shopping_list.feature")
 
@@ -68,59 +67,6 @@ def kitchenowl_has_item(kitchenowl_household, kitchenowl_items_by_name, item_nam
 def kitchenowl_has_no_item(kitchenowl_household, item_name):
     items = kitchenowl_household.server.get_items(kitchenowl_household.id)
     assert not any(item["name"].casefold() == item_name.casefold() for item in items)
-
-
-def _split_quantity(quantity: str) -> tuple[float, str | None]:
-    amount, _, unit_name = quantity.partition(" ")
-    return float(amount), unit_name or None
-
-
-@given(
-    parsers.parse(
-        'a Mealie recipe action is triggered for the recipe "{recipe_name}" '
-        'with the ingredient "{ingredient_name}" and quantity "{quantity}"'
-    ),
-)
-def recipe_action_triggered_with_quantity(
-    page, live_server, requests_mock, config, recipe_name, ingredient_name, quantity
-):
-    amount, unit_name = _split_quantity(quantity)
-    slug = slugify(recipe_name)
-    stub_recipe(
-        requests_mock,
-        config,
-        slug,
-        recipe_name,
-        [
-            {
-                "display": f"{quantity} {ingredient_name}",
-                "food": {"name": ingredient_name},
-                "quantity": amount,
-                "unit": {"name": unit_name} if unit_name else None,
-            }
-        ],
-    )
-    page.goto(f"{live_server.url('/recipes/action')}?slug={slug}")
-
-
-@given(
-    parsers.parse(
-        'a Mealie recipe action is triggered for the recipe "{recipe_name}" '
-        'with the ingredient "{ingredient_name}" and no quantity'
-    ),
-)
-def recipe_action_triggered_without_quantity(
-    page, live_server, requests_mock, config, recipe_name, ingredient_name
-):
-    slug = slugify(recipe_name)
-    stub_recipe(
-        requests_mock,
-        config,
-        slug,
-        recipe_name,
-        [{"display": ingredient_name, "food": {"name": ingredient_name}}],
-    )
-    page.goto(f"{live_server.url('/recipes/action')}?slug={slug}")
 
 
 @then(parsers.parse('I see the shopping lists "{first_list}" and "{second_list}" to choose from'))
