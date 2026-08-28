@@ -6,11 +6,11 @@ scenarios("../features/health_check.feature")
 
 
 @when("I request the health endpoint", target_fixture="response")
-def request_health_endpoint(running_app):
-    return running_app.get("/healthz")
+def request_health_endpoint(live_server, page):
+    return page.request.get(live_server.url("/healthz"))
 
 
 @then("the response indicates the service is healthy")
 def response_is_healthy(response):
-    assert response.status_code == 200
-    assert response.get_json() == {"status": "ok"}
+    assert response.status == 200
+    assert response.json() == {"status": "ok"}

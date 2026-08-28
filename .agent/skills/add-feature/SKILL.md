@@ -14,9 +14,9 @@ and a human should read the scenario before anyone builds against it.
 ## Steps
 
 1. **Read `AGENTS.md`'s "BDD workflow" section first.** It's the source of truth for
-   conventions used across this project — one feature file per capability, existing
-   tag usage (e.g. `@browser` for scenarios that need a real browser), and the
-   `Given`/`When`/`Then` phrasing style already in use. Don't duplicate that guidance
+   conventions used across this project — one feature file per capability, the
+   `Given`/`When`/`Then` phrasing style already in use, and the locator conventions
+   for anything a scenario drives through the browser. Don't duplicate that guidance
    here; just follow it.
 
 2. **Check for an existing match or conflict before writing anything.** Read through

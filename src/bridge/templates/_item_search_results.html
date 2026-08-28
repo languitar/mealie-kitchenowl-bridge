@@ -2,7 +2,10 @@
 <button type="button" class="dropdown-item"
         hx-on:click="let row=this.closest('.ingredient-row');
                      row.querySelector('.item-search-input').value='{{ item.name|e }}';
-                     row.querySelector('select').value='{{ item.id }}';
+                     let select=row.querySelector('select');
+                     select.innerHTML='';
+                     select.add(new Option('Create new item', 'new'));
+                     select.add(new Option('{{ item.name|e }}', '{{ item.id }}', false, true));
                      row.querySelector('.dropdown-content').innerHTML='';">
   {{ item.name }}
 </button>

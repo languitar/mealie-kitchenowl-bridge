@@ -1,10 +1,10 @@
 from dataclasses import replace
 
 import pytest
+from playwright.sync_api import expect
 from pytest_bdd import given, parsers, scenarios, then, when
 
 from .common import *  # noqa: F401,F403
-from .common import log_in_browser_context
 
 scenarios("../features/mealie_recipe_trigger.feature")
 
@@ -39,8 +39,7 @@ def real_mealie_recipe(mealie_server, recipe_name, ingredient_name):
 
 
 @given("the bridge's recipe action is configured on that recipe in Mealie")
-def bridge_action_configured(context, app, mealie_server, live_server):
-    log_in_browser_context(context, app, live_server)
+def bridge_action_configured(mealie_server, live_server):
     action_url = f"{live_server.url('/recipes/action')}?slug=${{slug}}"
     mealie_server.create_link_action("Send to KitchenOwl", action_url)
 
@@ -70,4 +69,4 @@ def open_recipe_and_trigger_action(page, mealie_server, mealie_recipe):
     )
 )
 def see_bridge_selection_screen(triggered_popup, recipe_name):
-    assert recipe_name in triggered_popup.content()
+    expect(triggered_popup.get_by_text(recipe_name)).to_be_visible()

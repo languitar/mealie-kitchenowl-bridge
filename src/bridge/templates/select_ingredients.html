@@ -7,7 +7,7 @@
 <form method="post" action="{{ url_for('review.push_to_shopping_list', list_id=list_id) }}">
   {% for ingredient in ingredients %}
   {% set match = matches.get(ingredient.name) %}
-  <div class="box ingredient-row">
+  <div class="box ingredient-row" role="group" aria-label="{{ ingredient.name }}">
     <div class="columns is-vcentered is-mobile">
       <div class="column">
         <label class="checkbox">
@@ -31,7 +31,7 @@
           <div class="dropdown-menu">
             <div class="dropdown-content"></div>
           </div>
-          <select name="item_choice:{{ ingredient.name }}">
+          <select name="item_choice:{{ ingredient.name }}" data-testid="item-choice">
             <option value="new" {% if not match %}selected{% endif %}>Create new item</option>
             {% if match %}
             <option value="{{ match.id }}" selected>{{ match.name }}</option>

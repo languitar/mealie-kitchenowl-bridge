@@ -11,26 +11,18 @@ from pytest_bdd import given, parsers, when
 _LOGGED_IN_USER = {"sub": "test-user", "email": "test-user@example.com"}
 
 
-@given("the bridge is running", target_fixture="running_app")
-def bridge_is_running(client):
-    return client
-
-
-@given("the bridge is running as a logged-in user", target_fixture="running_app")
-def bridge_is_running_as_logged_in_user(client):
-    with client.session_transaction() as flask_session:
-        flask_session["user"] = _LOGGED_IN_USER
-    return client
+@given("the bridge is running")
+def bridge_is_running(live_server):
+    pass
 
 
 def log_in_browser_context(context, app, live_server):
-    """Inject a signed Flask session cookie so a browser-driven (`@browser`)
-    scenario starts already logged in.
+    """Inject a signed Flask session cookie so a browser context starts already
+    logged in.
 
     Playwright can't drive a real OIDC redirect dance through a third-party
-    identity provider, so this bypasses login the same way
-    `session_transaction()` does for the Flask-test-client tier - by minting
-    the same signed cookie Flask's own login flow would produce.
+    identity provider, so this bypasses login by minting the same signed
+    cookie Flask's own login flow would produce.
     """
     serializer = SecureCookieSessionInterface().get_signing_serializer(app)
     cookie_value = serializer.dumps({"user": _LOGGED_IN_USER})
@@ -43,6 +35,11 @@ def log_in_browser_context(context, app, live_server):
             }
         ]
     )
+
+
+@given("the bridge is running as a logged-in user")
+def bridge_is_running_as_logged_in_user(context, app, live_server):
+    log_in_browser_context(context, app, live_server)
 
 
 def slugify(recipe_name: str) -> str:
@@ -64,7 +61,8 @@ def stub_recipe(
 
 
 def _trigger_recipe_action(
-    running_app,
+    page,
+    live_server,
     requests_mock,
     config,
     recipe_name,
@@ -79,17 +77,7 @@ def _trigger_recipe_action(
         recipe_name,
         [{"display": first_ingredient}, {"display": second_ingredient}],
     )
-    response = running_app.get(
-        "/recipes/action",
-        query_string={"slug": slug},
-    )
-    return {
-        "response": response,
-        "ingredients": [
-            {"name": first_ingredient, "quantity": None},
-            {"name": second_ingredient, "quantity": None},
-        ],
-    }
+    page.goto(f"{live_server.url('/recipes/action')}?slug={slug}")
 
 
 _TRIGGER_TEXT = (
@@ -98,18 +86,20 @@ _TRIGGER_TEXT = (
 )
 
 
-@given(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
-@when(parsers.parse(_TRIGGER_TEXT), target_fixture="triggered")
+@given(parsers.parse(_TRIGGER_TEXT))
+@when(parsers.parse(_TRIGGER_TEXT))
 def recipe_action_triggered(
-    running_app,
+    page,
+    live_server,
     requests_mock,
     config,
     recipe_name,
     first_ingredient,
     second_ingredient,
 ):
-    return _trigger_recipe_action(
-        running_app,
+    _trigger_recipe_action(
+        page,
+        live_server,
         requests_mock,
         config,
         recipe_name,
