@@ -1,0 +1,11 @@
+---
+# Throwaway credentials for local dev-stack testing only (see docker-compose.yml
+# and README's "Local dev stack" section) - never use this file as a template
+# for a real deployment.
+users:
+  devstack:
+    displayname: 'Dev Stack User'
+    password: '$argon2id$v=19$m=65536,t=3,p=4$E5iWvtXHxscnEQleBbtcxg$lKPzqRF/pFo63OK4HnBOeHc0KiOaO7BwcS4dyyZoWu8' # devstack-password
+    email: devstack@example.com
+    groups:
+      - admins

@@ -1,6 +1,89 @@
 services:
+  # Local dev stack for exercising the bridge against real Mealie/KitchenOwl/
+  # Authelia instances instead of a real deployment - see README's "Local dev
+  # stack" section. `docker compose up --build` brings up the whole thing and
+  # seeds it automatically, no manual setup steps required.
+  #
+  # To run the bridge against a real deployment instead, point .env at it and
+  # run `docker compose up --build --no-deps bridge` (--no-deps skips the
+  # dev-stack services and the seed step below).
+
+  authelia:
+    image: authelia/authelia:4.39.20
+    volumes:
+      - ./docker/authelia/configuration.yml:/config/configuration.yml:ro
+      - ./docker/authelia/users_database.yml:/config/users_database.yml:ro
+      - ./docker/authelia/tls:/config/tls:ro
+      - authelia_data:/data
+    ports:
+      - "9091:9091"
+
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:v3.22.0
+    volumes:
+      - mealie_data:/app/data
+    ports:
+      - "9000:9000"
+
+  kitchenowl:
+    image: tombursch/kitchenowl:v0.7.9
+    environment:
+      # Throwaway dev-stack secret, not used anywhere real (see
+      # docker/authelia's own committed dev secrets for the same pattern).
+      JWT_SECRET_KEY: dev-stack-not-a-real-secret
+    volumes:
+      - kitchenowl_data:/data
+    ports:
+      - "8080:8080"
+
+  # One-shot: seeds Mealie/KitchenOwl with test data, then exits. Writes the
+  # tokens it mints to the seed_env volume, which the bridge container below
+  # sources automatically - and, if the repo is writable (i.e. not a fresh
+  # checkout run some other way), also to .env for running the bridge with
+  # `uv run flask` instead. Safe to re-run: `docker compose up --build seed`.
+  seed:
+    build: .
+    network_mode: host
+    volumes:
+      - .:/workspace
+      - seed_env:/seed
+    entrypoint: []
+    command: ["/app/.venv/bin/python", "/workspace/scripts/seed_dev_stack.py"]
+    depends_on:
+      - mealie
+      - kitchenowl
+      - authelia
+
   bridge:
     build: .
-    env_file: .env
-    ports:
-      - "5000:5000"
+    network_mode: host
+    env_file:
+      - docker/dev-stack.env
+      - path: .env
+        required: false
+    environment:
+      # Trust Authelia's self-signed dev-stack certificate (see
+      # docker/authelia/tls/) for the server-side OIDC discovery/token calls
+      # Authlib makes.
+      REQUESTS_CA_BUNDLE: /certs/authelia-ca.pem
+    volumes:
+      - ./docker/authelia/tls/cert.pem:/certs/authelia-ca.pem:ro
+      - seed_env:/seed:ro
+    # Source the KITCHENOWL_API_TOKEN/KITCHENOWL_HOUSEHOLD_ID/MEALIE_API_TOKEN
+    # the seed service minted, layering them on top of docker/dev-stack.env's
+    # fixed values, before starting the app as usual.
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "test -f /seed/env && set -a && . /seed/env && set +a; exec flask run --host=0.0.0.0",
+      ]
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
+volumes:
+  authelia_data:
+  mealie_data:
+  kitchenowl_data:
+  seed_env:
