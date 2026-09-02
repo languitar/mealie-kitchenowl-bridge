@@ -22,6 +22,12 @@ server:
 log:
   level: info
 
+# Skip the NTP clock-sync startup check: local dev containers often can't
+# reach an NTP server (or run with enough clock drift to fail it), and it's
+# irrelevant for this throwaway dev-only instance.
+ntp:
+  disable_startup_check: true
+
 identity_validation:
   reset_password:
     jwt_secret: 'f002956e2f67acbd8852d7afacfccde146b5ad636603fdd8ac013882dc817876'
