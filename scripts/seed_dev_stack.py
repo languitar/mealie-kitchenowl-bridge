@@ -38,7 +38,7 @@ _KITCHENOWL_HOUSEHOLD_NAME = "Home"
 _KITCHENOWL_SHOPPING_LIST_NAME = "Groceries"
 _KITCHENOWL_CATALOG_ITEMS = ["Onion", "Garlic", "Olive Oil", "Salt"]
 
-BRIDGE_URL = "http://127.0.0.1:5000"
+BRIDGE_URL = "http://127.0.0.1:5050"
 
 _RECIPES = [
     (

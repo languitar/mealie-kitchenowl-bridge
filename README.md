@@ -174,6 +174,17 @@ bridge. Log into the bridge itself with `devstack` / `devstack-password`
 KitchenOwl has a household with a shopping list and a handful of catalog
 items already set up, to demonstrate ingredient matching.
 
+Mealie and KitchenOwl are also wired up to authenticate against Authelia
+themselves, alongside their own local admin logins - Mealie's login page has
+a "Sign in with Authelia" option, and KitchenOwl's has a "Sign in with OIDC"
+option, both using the same `devstack` / `devstack-password` account as the
+bridge. Since this creates a separate account from each app's own seeded
+local admin (Mealie auto-creates OIDC users, mapping the `admins` Authelia
+group to Mealie admin rights; KitchenOwl links or creates an account per
+OIDC subject), the seeded recipes/household stay under the local admin
+logins above - OIDC login here is to demonstrate/exercise the integration,
+not to unify accounts across apps.
+
 `scripts/seed_dev_stack.py` (run by the `seed` service) is safe to re-run -
 it skips anything it already created and just refreshes the tokens it mints,
 writing them to a shared volume the `bridge` container sources on startup
@@ -181,9 +192,14 @@ writing them to a shared volume the `bridge` container sources on startup
 the bridge itself with `uv run flask` against the dev stack instead of
 `docker compose up --build bridge`, run `cp .env.dev-stack.example .env`
 first and re-run `docker compose up --build seed` - it also fills in that
-file's blanks.
+file's blanks. Run it on port 5050 (`uv run flask --app bridge.app:create_app
+run --port=5050`), matching the containerized bridge - KitchenOwl's image
+hardcodes an internal socket on Flask's default port 5000, which the dev
+stack's other containers can otherwise collide with since everything shares
+the host's network.
 
-All the secrets in `docker/authelia/`, `docker/dev-stack.env`, and
+All the secrets in `docker/authelia/`, `docker/dev-stack.env`,
+`docker-compose.yml` (Mealie's and KitchenOwl's OIDC client secrets), and
 `.env.dev-stack.example` are throwaway values committed on purpose for this
 dev-only stack (matching the BDD suite's own test containers, see
 AGENTS.md) - never reuse them for a real deployment.
