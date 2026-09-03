@@ -184,9 +184,11 @@ admin (`changeme@example.com`, see `docker/authelia/users_database.yml`) on
 purpose - so "Sign in with Authelia" logs into that same already-seeded
 account, recipes and recipe action included. KitchenOwl links OIDC logins by
 subject ID instead, which has no local-admin equivalent to match against, so
-its "Sign in with OIDC" always creates a separate, freshly-provisioned
-account without the seeded household/shopping list - use its local admin
-login (see below) to see the seeded data there.
+its "Sign in with OIDC" always provisions a separate account the first time
+it's used - the seed script pre-creates that account itself (driving the
+OIDC login non-interactively) and adds it to the seeded household, so it
+still has the shopping list and catalog items, just as a regular member
+rather than the household admin.
 
 `scripts/seed_dev_stack.py` (run by the `seed` service) is safe to re-run -
 it skips anything it already created and just refreshes the tokens it mints,

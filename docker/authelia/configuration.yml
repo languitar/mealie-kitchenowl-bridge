@@ -170,6 +170,12 @@ identity_providers:
         client_secret: '$pbkdf2-sha512$310000$pFbkBk.RnsCwfscTHBK5Fg$rVTNYImlGvXGZOlUltN/mRwleZRq/CMXX4Q.1vVizPpF8b60iZV4yJem9CuCnMVaYbW9i0K/Zmh6rH.2Geu3yw'
         public: false
         authorization_policy: 'one_factor'
+        # Skips the interactive consent screen entirely, so the seed script
+        # can drive KitchenOwl's OIDC login non-interactively (see
+        # scripts/seed_dev_stack.py) to link the devstack account to the
+        # seeded household. Not spec-compliant and Authelia-discouraged for
+        # anything but dev/test - fine here since this is throwaway dev-only.
+        consent_mode: 'implicit'
         redirect_uris:
           - 'http://127.0.0.1:8080/signin/redirect'
         scopes:

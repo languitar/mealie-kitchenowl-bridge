@@ -14,9 +14,12 @@ alone, only the token files get rewritten with fresh tokens each time.
 
 from __future__ import annotations
 
+import base64
+import json
 import re
 import time
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import requests
 
@@ -37,6 +40,17 @@ _KITCHENOWL_DEVICE = "dev-stack-seed"
 _KITCHENOWL_HOUSEHOLD_NAME = "Home"
 _KITCHENOWL_SHOPPING_LIST_NAME = "Groceries"
 _KITCHENOWL_CATALOG_ITEMS = ["Onion", "Garlic", "Olive Oil", "Salt"]
+_KITCHENOWL_OIDC_PROVIDER = "custom"
+_KITCHENOWL_OIDC_DEVICE = "dev-stack-oidc-link"
+
+# Authelia's own API (not KitchenOwl's), used to link its devstack user's
+# OIDC-provisioned KitchenOwl account to the seeded household - see
+# link_kitchenowl_oidc_member(). Credentials match
+# docker/authelia/users_database.yml.
+AUTHELIA_URL = "https://127.0.0.1:9091"
+AUTHELIA_CERT = REPO_ROOT / "docker" / "authelia" / "tls" / "cert.pem"
+_AUTHELIA_USERNAME = "devstack"
+_AUTHELIA_PASSWORD = "devstack-password"  # noqa: S105 (throwaway dev-stack container)
 
 BRIDGE_URL = "http://127.0.0.1:5050"
 
@@ -236,7 +250,70 @@ def seed_kitchenowl() -> tuple[str, int]:
             ).raise_for_status()
     print(f"  Catalog items ready: {', '.join(_KITCHENOWL_CATALOG_ITEMS)}.")
 
+    link_kitchenowl_oidc_member(headers, household_id)
+
     return headers["Authorization"].removeprefix("Bearer "), household_id
+
+
+def link_kitchenowl_oidc_member(headers: dict[str, str], household_id: int) -> None:
+    """Adds Authelia's devstack user's OIDC-linked KitchenOwl account to the
+    seeded household.
+
+    KitchenOwl links OIDC logins to accounts by subject ID rather than
+    email, so unlike Mealie (see seed_mealie), there's no existing account
+    for "Sign in with OIDC" to resolve to - it always provisions a new one.
+    Rather than leave that account without the seeded household/shopping
+    list, drive the whole OIDC authorization-code flow directly via HTTP
+    (no browser) to provision it here and add it as a household member.
+    This only works non-interactively because the kitchenowl Authelia
+    client uses consent_mode: implicit (see
+    docker/authelia/configuration.yml), skipping the consent step that
+    would otherwise require a real browser.
+
+    Safe to re-run: KitchenOwl resolves the same OIDC subject to the same
+    account every time, and household membership is an upsert.
+    """
+    session = requests.Session()
+    session.verify = str(AUTHELIA_CERT)
+
+    response = session.post(
+        f"{AUTHELIA_URL}/api/firstfactor",
+        json={
+            "username": _AUTHELIA_USERNAME,
+            "password": _AUTHELIA_PASSWORD,
+            "keepMeLoggedIn": False,
+        },
+    )
+    response.raise_for_status()
+
+    response = requests.get(
+        f"{KITCHENOWL_URL}/api/auth/oidc", params={"provider": _KITCHENOWL_OIDC_PROVIDER}
+    )
+    response.raise_for_status()
+    login_url = response.json()["login_url"]
+
+    response = session.get(login_url, allow_redirects=False)
+    response.raise_for_status()
+    query = parse_qs(urlparse(response.headers["Location"]).query)
+
+    response = requests.post(
+        f"{KITCHENOWL_URL}/api/auth/callback",
+        json={
+            "state": query["state"][0],
+            "code": query["code"][0],
+            "device": _KITCHENOWL_OIDC_DEVICE,
+        },
+    )
+    response.raise_for_status()
+    payload = response.json()["access_token"].split(".")[1]
+    user_id = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))["sub"]
+
+    requests.put(
+        f"{KITCHENOWL_URL}/api/household/{household_id}/member/{user_id}",
+        headers=headers,
+        json={"admin": False},
+    ).raise_for_status()
+    print("  Linked the Authelia OIDC login to a household member.")
 
 
 def write_seed_env(kitchenowl_token: str, kitchenowl_household_id: int, mealie_token: str) -> None:
