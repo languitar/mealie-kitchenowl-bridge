@@ -47,7 +47,7 @@ session:
   cookies:
     - domain: '127.0.0.1'
       authelia_url: 'https://127.0.0.1:9091'
-      default_redirection_url: 'https://127.0.0.1:5050/'
+      default_redirection_url: 'http://127.0.0.1:5050/'
 
 storage:
   encryption_key: 'c07561d27f90cdf544ae993240f9e53c3a01f8a4e2bfeffd79189a577f1f26a0'
