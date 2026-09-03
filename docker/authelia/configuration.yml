@@ -45,9 +45,13 @@ access_control:
 session:
   secret: '957650b4c8a8f7408c0ff10d4cae0f28b4ace0e2837f9675b2b20c9b6175dd47'
   cookies:
+    # No default_redirection_url: Authelia requires it to use https://, but
+    # none of the dev stack's apps (bridge, Mealie, KitchenOwl) serve TLS.
+    # It's only used when visiting Authelia directly with no login target in
+    # flight - every real flow here (bridge, Mealie, KitchenOwl OIDC logins)
+    # carries its own redirect_uri, so this is safe to leave unset.
     - domain: '127.0.0.1'
       authelia_url: 'https://127.0.0.1:9091'
-      default_redirection_url: 'http://127.0.0.1:5050/'
 
 storage:
   encryption_key: 'c07561d27f90cdf544ae993240f9e53c3a01f8a4e2bfeffd79189a577f1f26a0'
