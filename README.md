@@ -178,12 +178,15 @@ Mealie and KitchenOwl are also wired up to authenticate against Authelia
 themselves, alongside their own local admin logins - Mealie's login page has
 a "Sign in with Authelia" option, and KitchenOwl's has a "Sign in with OIDC"
 option, both using the same `devstack` / `devstack-password` account as the
-bridge. Since this creates a separate account from each app's own seeded
-local admin (Mealie auto-creates OIDC users, mapping the `admins` Authelia
-group to Mealie admin rights; KitchenOwl links or creates an account per
-OIDC subject), the seeded recipes/household stay under the local admin
-logins above - OIDC login here is to demonstrate/exercise the integration,
-not to unify accounts across apps.
+bridge. Mealie links OIDC logins to existing accounts by email, and
+Authelia's `devstack` user is seeded with the same email as Mealie's local
+admin (`changeme@example.com`, see `docker/authelia/users_database.yml`) on
+purpose - so "Sign in with Authelia" logs into that same already-seeded
+account, recipes and recipe action included. KitchenOwl links OIDC logins by
+subject ID instead, which has no local-admin equivalent to match against, so
+its "Sign in with OIDC" always creates a separate, freshly-provisioned
+account without the seeded household/shopping list - use its local admin
+login (see below) to see the seeded data there.
 
 `scripts/seed_dev_stack.py` (run by the `seed` service) is safe to re-run -
 it skips anything it already created and just refreshes the tokens it mints,

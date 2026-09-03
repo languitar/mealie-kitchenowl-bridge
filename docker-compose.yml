@@ -39,6 +39,11 @@ services:
       OIDC_CLIENT_SECRET: 5fa94638820b5f2c77998727bbf9d2284980625808df0ba4360bf6694e7f0956
       OIDC_AUTO_REDIRECT: "false"
       OIDC_PROVIDER_NAME: Authelia
+      # Both are IdP-side group-claim gates, not Mealie group assignments:
+      # OIDC_USER_GROUP requires the IdP's groups claim to contain this value
+      # to log in at all; OIDC_ADMIN_GROUP additionally makes such users
+      # Mealie admins. devstack (docker/authelia/users_database.yml) is in
+      # Authelia's "admins" group, satisfying both.
       OIDC_USER_GROUP: admins
       OIDC_ADMIN_GROUP: admins
       # Trust Authelia's self-signed dev-stack certificate (see

@@ -6,6 +6,10 @@ users:
   devstack:
     displayname: 'Dev Stack User'
     password: '$argon2id$v=19$m=65536,t=3,p=4$E5iWvtXHxscnEQleBbtcxg$lKPzqRF/pFo63OK4HnBOeHc0KiOaO7BwcS4dyyZoWu8' # devstack-password
-    email: devstack@example.com
+    # Matches Mealie's seeded local admin (changeme@example.com) on purpose:
+    # Mealie links OIDC logins to existing accounts by email (OIDC_USER_CLAIM,
+    # see docker-compose.yml), so "Login with Authelia" resolves to the same
+    # already-seeded admin account instead of creating a fresh, empty one.
+    email: changeme@example.com
     groups:
       - admins
