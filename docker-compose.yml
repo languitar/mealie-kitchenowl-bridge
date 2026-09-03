@@ -1,6 +1,137 @@
 services:
+  # Local dev stack for exercising the bridge against real Mealie/KitchenOwl/
+  # Authelia instances instead of a real deployment - see README's "Local dev
+  # stack" section. `docker compose up --build` brings up the whole thing and
+  # seeds it automatically, no manual setup steps required.
+  #
+  # To run the bridge against a real deployment instead, point .env at it and
+  # run `docker compose up --build --no-deps bridge` (--no-deps skips the
+  # dev-stack services and the seed step below).
+
+  authelia:
+    image: authelia/authelia:4.39.20
+    network_mode: host
+    volumes:
+      - ./docker/authelia/configuration.yml:/config/configuration.yml:ro
+      - ./docker/authelia/users_database.yml:/config/users_database.yml:ro
+      - ./docker/authelia/tls:/config/tls:ro
+      - authelia_data:/data
+    # KitchenOwl fetches Authelia's OIDC discovery document at process
+    # startup rather than lazily on first login, so it (and Mealie, for
+    # good measure) needs to wait for Authelia to actually be ready, not
+    # just started - see the depends_on below.
+    healthcheck:
+      test: ["CMD", "/app/healthcheck.sh"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:v3.22.0
+    network_mode: host
+    environment:
+      OIDC_AUTH_ENABLED: "true"
+      OIDC_SIGNUP_ENABLED: "true"
+      OIDC_CONFIGURATION_URL: https://127.0.0.1:9091/.well-known/openid-configuration
+      OIDC_CLIENT_ID: mealie
+      # Throwaway dev-stack secret matching docker/authelia/configuration.yml's
+      # mealie client hash - never reuse it for a real deployment.
+      OIDC_CLIENT_SECRET: 5fa94638820b5f2c77998727bbf9d2284980625808df0ba4360bf6694e7f0956
+      OIDC_AUTO_REDIRECT: "false"
+      OIDC_PROVIDER_NAME: Authelia
+      # Both are IdP-side group-claim gates, not Mealie group assignments:
+      # OIDC_USER_GROUP requires the IdP's groups claim to contain this value
+      # to log in at all; OIDC_ADMIN_GROUP additionally makes such users
+      # Mealie admins. devstack (docker/authelia/users_database.yml) is in
+      # Authelia's "admins" group, satisfying both.
+      OIDC_USER_GROUP: admins
+      OIDC_ADMIN_GROUP: admins
+      # Trust Authelia's self-signed dev-stack certificate (see
+      # docker/authelia/tls/) for the server-side OIDC discovery/token calls.
+      REQUESTS_CA_BUNDLE: /certs/authelia-ca.pem
+      SSL_CERT_FILE: /certs/authelia-ca.pem
+    volumes:
+      - mealie_data:/app/data
+      - ./docker/authelia/tls/cert.pem:/certs/authelia-ca.pem:ro
+    depends_on:
+      authelia:
+        condition: service_healthy
+
+  kitchenowl:
+    image: tombursch/kitchenowl:v0.7.9
+    network_mode: host
+    environment:
+      # Throwaway dev-stack secret, not used anywhere real (see
+      # docker/authelia's own committed dev secrets for the same pattern).
+      JWT_SECRET_KEY: dev-stack-not-a-real-secret
+      FRONT_URL: http://127.0.0.1:8080
+      OIDC_ISSUER: https://127.0.0.1:9091
+      OIDC_CLIENT_ID: kitchenowl
+      # Throwaway dev-stack secret matching docker/authelia/configuration.yml's
+      # kitchenowl client hash - never reuse it for a real deployment.
+      OIDC_CLIENT_SECRET: c6275be049eb3c31861925d2fd5d5b4c683d097740999db3e44dfcf8ce0abe40
+      # Trust Authelia's self-signed dev-stack certificate (see
+      # docker/authelia/tls/) for the server-side OIDC discovery/token calls.
+      REQUESTS_CA_BUNDLE: /certs/authelia-ca.pem
+      SSL_CERT_FILE: /certs/authelia-ca.pem
+    volumes:
+      - kitchenowl_data:/data
+      - ./docker/authelia/tls/cert.pem:/certs/authelia-ca.pem:ro
+    depends_on:
+      authelia:
+        condition: service_healthy
+
+  # One-shot: seeds Mealie/KitchenOwl with test data, then exits. Writes the
+  # tokens it mints to the seed_env volume, which the bridge container below
+  # sources automatically - and, if the repo is writable (i.e. not a fresh
+  # checkout run some other way), also to .env for running the bridge with
+  # `uv run flask` instead. Safe to re-run: `docker compose up --build seed`.
+  seed:
+    build: .
+    network_mode: host
+    volumes:
+      - .:/workspace
+      - seed_env:/seed
+    entrypoint: []
+    command: ["/app/.venv/bin/python", "/workspace/scripts/seed_dev_stack.py"]
+    depends_on:
+      - mealie
+      - kitchenowl
+      - authelia
+
   bridge:
     build: .
-    env_file: .env
-    ports:
-      - "5000:5000"
+    network_mode: host
+    env_file:
+      - docker/dev-stack.env
+      - path: .env
+        required: false
+    environment:
+      # Trust Authelia's self-signed dev-stack certificate (see
+      # docker/authelia/tls/) for the server-side OIDC discovery/token calls
+      # Authlib makes.
+      REQUESTS_CA_BUNDLE: /certs/authelia-ca.pem
+    volumes:
+      - ./docker/authelia/tls/cert.pem:/certs/authelia-ca.pem:ro
+      - seed_env:/seed:ro
+    # Source the KITCHENOWL_API_TOKEN/KITCHENOWL_HOUSEHOLD_ID/MEALIE_API_TOKEN
+    # the seed service minted, layering them on top of docker/dev-stack.env's
+    # fixed values, before starting the app as usual. Runs on 5050 rather than
+    # Flask's default 5000, since KitchenOwl's own image hardcodes an internal
+    # uwsgi socket on 5000 that would otherwise collide with it under host
+    # networking.
+    entrypoint:
+      [
+        "/bin/sh",
+        "-c",
+        "test -f /seed/env && set -a && . /seed/env && set +a; exec flask run --host=0.0.0.0 --port=5050",
+      ]
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
+volumes:
+  authelia_data:
+  mealie_data:
+  kitchenowl_data:
+  seed_env:

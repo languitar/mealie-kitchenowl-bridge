@@ -127,8 +127,13 @@ rather than passing them per invocation.
 
 ## Docker
 
+To run the bridge against a real, already-running Mealie/KitchenOwl/OIDC
+deployment, point `.env` (see Configuration above) at them and run just the
+`bridge` service, skipping the local dev-stack services below with
+`--no-deps`:
+
 ```bash
-docker compose up --build
+docker compose up --build --no-deps bridge
 ```
 
 Released versions are also published as prebuilt images to
@@ -136,6 +141,73 @@ Released versions are also published as prebuilt images to
 version (e.g. `v1.2.3`) and `latest`. Every commit on `main` that passes CI is
 additionally published under `dev`, its short commit hash, and the build date
 (e.g. `2026-07-29`), for testing unreleased changes.
+
+### Local dev stack
+
+`docker-compose.yml` also defines a full local stack - Mealie, KitchenOwl, and
+Authelia (as the bridge's OIDC provider) - so the whole recipe-to-shopping-list
+flow can be exercised end-to-end without a real deployment, and without any
+setup: every fixed value (TLS/OIDC certificates and keys, client secrets,
+session key) is a committed throwaway value, and the only things that can't
+be hardcoded - Mealie/KitchenOwl API tokens and the KitchenOwl household ID,
+all minted fresh by each new instance - are generated and wired up
+automatically by a `seed` service that runs as part of `up`. One command
+brings up a fully working, fully seeded stack:
+
+```bash
+docker compose up --build
+```
+
+Everything is addressed as `127.0.0.1` rather than `localhost` (Authelia's
+cookie-domain validation requires either a dotted domain or an IP address),
+and Authelia terminates TLS itself with a self-signed certificate (its
+session cookies are always `Secure`, so it can't run over plain HTTP even
+locally) - your browser will show a certificate warning for
+`https://127.0.0.1:9091` the first time; click through it.
+
+Open <http://127.0.0.1:9000>, log into Mealie as `changeme@example.com` /
+`MyPassword`, open one of the seeded recipes, and use its "Push to
+KitchenOwl" recipe action - this is the same Link action a real deployment
+would use, already pre-configured by the seed script to point at the local
+bridge. Log into the bridge itself with `devstack` / `devstack-password`
+(Authelia's one seeded user, see `docker/authelia/users_database.yml`).
+KitchenOwl has a household with a shopping list and a handful of catalog
+items already set up, to demonstrate ingredient matching.
+
+Mealie and KitchenOwl are also wired up to authenticate against Authelia
+themselves, alongside their own local admin logins - Mealie's login page has
+a "Sign in with Authelia" option, and KitchenOwl's has a "Sign in with OIDC"
+option, both using the same `devstack` / `devstack-password` account as the
+bridge. Mealie links OIDC logins to existing accounts by email, and
+Authelia's `devstack` user is seeded with the same email as Mealie's local
+admin (`changeme@example.com`, see `docker/authelia/users_database.yml`) on
+purpose - so "Sign in with Authelia" logs into that same already-seeded
+account, recipes and recipe action included. KitchenOwl links OIDC logins by
+subject ID instead, which has no local-admin equivalent to match against, so
+its "Sign in with OIDC" always provisions a separate account the first time
+it's used - the seed script pre-creates that account itself (driving the
+OIDC login non-interactively) and adds it to the seeded household, so it
+still has the shopping list and catalog items, just as a regular member
+rather than the household admin.
+
+`scripts/seed_dev_stack.py` (run by the `seed` service) is safe to re-run -
+it skips anything it already created and just refreshes the tokens it mints,
+writing them to a shared volume the `bridge` container sources on startup
+(on top of the fixed values in `docker/dev-stack.env`). If you'd rather run
+the bridge itself with `uv run flask` against the dev stack instead of
+`docker compose up --build bridge`, run `cp .env.dev-stack.example .env`
+first and re-run `docker compose up --build seed` - it also fills in that
+file's blanks. Run it on port 5050 (`uv run flask --app bridge.app:create_app
+run --port=5050`), matching the containerized bridge - KitchenOwl's image
+hardcodes an internal socket on Flask's default port 5000, which the dev
+stack's other containers can otherwise collide with since everything shares
+the host's network.
+
+All the secrets in `docker/authelia/`, `docker/dev-stack.env`,
+`docker-compose.yml` (Mealie's and KitchenOwl's OIDC client secrets), and
+`.env.dev-stack.example` are throwaway values committed on purpose for this
+dev-only stack (matching the BDD suite's own test containers, see
+AGENTS.md) - never reuse them for a real deployment.
 
 ## Architecture & conventions
 
