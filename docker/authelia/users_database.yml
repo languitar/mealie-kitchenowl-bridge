@@ -3,9 +3,9 @@
 # and README's "Local dev stack" section) - never use this file as a template
 # for a real deployment.
 users:
-  devstack:
+  user:
     displayname: 'Dev Stack User'
-    password: '$argon2id$v=19$m=65536,t=3,p=4$E5iWvtXHxscnEQleBbtcxg$lKPzqRF/pFo63OK4HnBOeHc0KiOaO7BwcS4dyyZoWu8' # devstack-password
+    password: '$argon2id$v=19$m=65536,t=3,p=4$S95marAK69MiP7XttatRXA$aqJ/jme1vZWKLu2PO4YcDUJa7TUnbf59U/yGMyKvf18' # pass
     # Matches Mealie's seeded local admin (changeme@example.com) on purpose:
     # Mealie links OIDC logins to existing accounts by email (OIDC_USER_CLAIM,
     # see docker-compose.yml), so "Login with Authelia" resolves to the same

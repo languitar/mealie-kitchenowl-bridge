@@ -43,52 +43,59 @@ _KITCHENOWL_CATALOG_ITEMS = ["Onion", "Garlic", "Olive Oil", "Salt"]
 _KITCHENOWL_OIDC_PROVIDER = "custom"
 _KITCHENOWL_OIDC_DEVICE = "dev-stack-oidc-link"
 
-# Authelia's own API (not KitchenOwl's), used to link its devstack user's
+# Authelia's own API (not KitchenOwl's), used to link its user account's
 # OIDC-provisioned KitchenOwl account to the seeded household - see
 # link_kitchenowl_oidc_member(). Credentials match
 # docker/authelia/users_database.yml.
 AUTHELIA_URL = "https://127.0.0.1:9091"
 AUTHELIA_CERT = REPO_ROOT / "docker" / "authelia" / "tls" / "cert.pem"
-_AUTHELIA_USERNAME = "devstack"
-_AUTHELIA_PASSWORD = "devstack-password"  # noqa: S105 (throwaway dev-stack container)
+_AUTHELIA_USERNAME = "user"
+_AUTHELIA_PASSWORD = "pass"  # noqa: S105 (throwaway dev-stack container)
 
 BRIDGE_URL = "http://127.0.0.1:5050"
 
+# (quantity, unit, food, note) per ingredient - food/unit are plain names,
+# not IDs: Mealie auto-creates matching food/unit entities on save (see its
+# RecipeIngredientBase.validate_unit/validate_food). Structured this way
+# (rather than dumping everything into a single free-text note) so the
+# bridge's ingredient review screen has real quantity/unit/food to display
+# and match against KitchenOwl's catalog, not just opaque notes.
 _RECIPES = [
     (
         "Spaghetti Bolognese",
         [
-            "500 g ground beef",
-            "1 onion, diced",
-            "2 cloves garlic, minced",
-            "400 g canned tomatoes",
-            "2 tbsp olive oil",
-            "400 g spaghetti",
-            "Salt and pepper to taste",
+            (500, "g", "ground beef", None),
+            (1, None, "onion", "diced"),
+            (2, "cloves", "garlic", "minced"),
+            (400, "g", "canned tomatoes", None),
+            (2, "tbsp", "olive oil", None),
+            (400, "g", "spaghetti", None),
+            (None, None, "salt", "to taste"),
+            (None, None, "pepper", "to taste"),
         ],
     ),
     (
         "Greek Salad",
         [
-            "2 large tomatoes",
-            "1 cucumber",
-            "1 red onion",
-            "200 g feta cheese",
-            "100 g kalamata olives",
-            "3 tbsp olive oil",
-            "1 tsp dried oregano",
+            (2, None, "tomatoes", "large"),
+            (1, None, "cucumber", None),
+            (1, None, "red onion", None),
+            (200, "g", "feta cheese", None),
+            (100, "g", "kalamata olives", None),
+            (3, "tbsp", "olive oil", None),
+            (1, "tsp", "dried oregano", None),
         ],
     ),
     (
         "Chicken Curry",
         [
-            "500 g chicken breast",
-            "1 onion, chopped",
-            "2 cloves garlic, minced",
-            "1 tbsp curry powder",
-            "400 ml coconut milk",
-            "1 tbsp vegetable oil",
-            "Salt to taste",
+            (500, "g", "chicken breast", None),
+            (1, None, "onion", "chopped"),
+            (2, "cloves", "garlic", "minced"),
+            (1, "tbsp", "curry powder", None),
+            (400, "ml", "coconut milk", None),
+            (1, "tbsp", "vegetable oil", None),
+            (None, None, "salt", "to taste"),
         ],
     ),
 ]
@@ -122,7 +129,7 @@ def seed_mealie() -> str:
     response.raise_for_status()
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
 
-    for name, ingredient_names in _RECIPES:
+    for name, ingredients in _RECIPES:
         slug = _slugify(name)
         if requests.get(f"{MEALIE_URL}/api/recipes/{slug}", headers=headers).status_code == 200:
             print(f"  Recipe '{name}' already exists, skipping.")
@@ -136,8 +143,8 @@ def seed_mealie() -> str:
         response.raise_for_status()
         recipe = response.json()
         recipe["recipeIngredient"] = [
-            {"food": None, "unit": None, "quantity": None, "note": n, "display": n}
-            for n in ingredient_names
+            {"quantity": quantity, "unit": unit, "food": food, "note": note}
+            for quantity, unit, food, note in ingredients
         ]
         response = requests.put(
             f"{MEALIE_URL}/api/recipes/{slug}", headers=headers, json=recipe
@@ -259,7 +266,7 @@ def seed_kitchenowl() -> tuple[str, int]:
 
 
 def link_kitchenowl_oidc_member(headers: dict[str, str], household_id: int) -> None:
-    """Adds Authelia's devstack user's OIDC-linked KitchenOwl account to the
+    """Adds Authelia's user account's OIDC-linked KitchenOwl account to the
     seeded household.
 
     KitchenOwl links OIDC logins to accounts by subject ID rather than

@@ -42,7 +42,7 @@ services:
       # Both are IdP-side group-claim gates, not Mealie group assignments:
       # OIDC_USER_GROUP requires the IdP's groups claim to contain this value
       # to log in at all; OIDC_ADMIN_GROUP additionally makes such users
-      # Mealie admins. devstack (docker/authelia/users_database.yml) is in
+      # Mealie admins. user (docker/authelia/users_database.yml) is in
       # Authelia's "admins" group, satisfying both.
       OIDC_USER_GROUP: admins
       OIDC_ADMIN_GROUP: admins

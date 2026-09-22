@@ -169,7 +169,7 @@ Open <http://127.0.0.1:9000>, log into Mealie as `changeme@example.com` /
 `MyPassword`, open one of the seeded recipes, and use its "Push to
 KitchenOwl" recipe action - this is the same Link action a real deployment
 would use, already pre-configured by the seed script to point at the local
-bridge. Log into the bridge itself with `devstack` / `devstack-password`
+bridge. Log into the bridge itself with `user` / `pass`
 (Authelia's one seeded user, see `docker/authelia/users_database.yml`).
 KitchenOwl has a household with a shopping list and a handful of catalog
 items already set up, to demonstrate ingredient matching.
@@ -177,9 +177,9 @@ items already set up, to demonstrate ingredient matching.
 Mealie and KitchenOwl are also wired up to authenticate against Authelia
 themselves, alongside their own local admin logins - Mealie's login page has
 a "Sign in with Authelia" option, and KitchenOwl's has a "Sign in with OIDC"
-option, both using the same `devstack` / `devstack-password` account as the
+option, both using the same `user` / `pass` account as the
 bridge. Mealie links OIDC logins to existing accounts by email, and
-Authelia's `devstack` user is seeded with the same email as Mealie's local
+Authelia's `user` account is seeded with the same email as Mealie's local
 admin (`changeme@example.com`, see `docker/authelia/users_database.yml`) on
 purpose - so "Sign in with Authelia" logs into that same already-seeded
 account, recipes and recipe action included. KitchenOwl links OIDC logins by
