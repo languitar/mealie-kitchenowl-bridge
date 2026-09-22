@@ -1,0 +1,2 @@
+{# Shared by the review row and the item suggestions, so both say it the same way. #}
+{% macro on_list_hint(quantity) %}<span class="on-list-hint" data-testid="on-list-hint">on the list{% if quantity %} <span data-testid="on-list-quantity">({{ quantity }})</span>{% endif %}</span>{% endmacro %}

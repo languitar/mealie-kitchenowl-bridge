@@ -47,6 +47,18 @@ def shopping_list_already_has_item(
     kitchenowl_household.server.add_shopping_list_item(list_id, item_name, quantity)
 
 
+@given(
+    parsers.parse(
+        'the shopping list "{list_name}" already has the item "{item_name}" with no quantity'
+    )
+)
+def shopping_list_already_has_item_without_quantity(
+    kitchenowl_household, shopping_lists_by_name, list_name, item_name
+):
+    list_id = shopping_lists_by_name[list_name]
+    kitchenowl_household.server.add_shopping_list_item(list_id, item_name, "")
+
+
 @pytest.fixture
 def kitchenowl_items_by_name() -> dict:
     return {}
@@ -127,6 +139,47 @@ def see_ingredient_matched(page, kitchenowl_items_by_name, ingredient, item_name
 def see_ingredient_set_to_create_new(page, ingredient):
     item_choice = _ingredient_row(page, ingredient).get_by_test_id("item-choice")
     expect(item_choice).to_have_value("new")
+
+
+def _selected_item_hint(page, ingredient_name: str):
+    """The row's hint about the item it currently has chosen.
+
+    Scoped to its own slot rather than the whole row, so an open suggestion
+    list (whose entries carry the same hint) can't make this ambiguous.
+    """
+    return _ingredient_row(page, ingredient_name).get_by_test_id("selected-item-hint")
+
+
+@then(
+    parsers.parse(
+        'I see the ingredient "{ingredient}" marked as already on the shopping list '
+        'with the quantity "{quantity}"'
+    )
+)
+def see_ingredient_marked_on_list(page, ingredient, quantity):
+    hint = _selected_item_hint(page, ingredient)
+    expect(hint.get_by_test_id("on-list-hint")).to_be_visible()
+    expect(hint.get_by_test_id("on-list-quantity")).to_have_text(f"({quantity})")
+
+
+@then(
+    parsers.parse(
+        'I see the ingredient "{ingredient}" marked as already on the shopping list '
+        "with no quantity"
+    )
+)
+def see_ingredient_marked_on_list_without_quantity(page, ingredient):
+    hint = _selected_item_hint(page, ingredient)
+    expect(hint.get_by_test_id("on-list-hint")).to_be_visible()
+    expect(hint.get_by_test_id("on-list-quantity")).not_to_be_attached()
+
+
+@then(
+    parsers.parse('I see the ingredient "{ingredient}" not marked as already on the shopping list')
+)
+def see_ingredient_not_marked_on_list(page, ingredient):
+    hint = _selected_item_hint(page, ingredient)
+    expect(hint.get_by_test_id("on-list-hint")).not_to_be_attached()
 
 
 @when(parsers.parse('I deselect the ingredient "{ingredient}"'))
@@ -317,3 +370,31 @@ def do_not_see_item_suggested(page, item_name):
 @then("I see no KitchenOwl items suggested")
 def see_no_items_suggested(page):
     expect(page.get_by_text("No matching items")).to_be_visible()
+
+
+def _suggestion(page, item_name: str):
+    return page.get_by_role("button", name=item_name, exact=True)
+
+
+@then(
+    parsers.parse(
+        'I see the suggested KitchenOwl item "{item_name}" marked as already on the '
+        'shopping list with the quantity "{quantity}"'
+    )
+)
+def see_suggestion_marked_on_list(page, item_name, quantity):
+    suggestion = _suggestion(page, item_name)
+    expect(suggestion.get_by_test_id("on-list-hint")).to_be_visible()
+    expect(suggestion.get_by_test_id("on-list-quantity")).to_have_text(f"({quantity})")
+
+
+@then(
+    parsers.parse(
+        'I see the suggested KitchenOwl item "{item_name}" not marked as already on the '
+        "shopping list"
+    )
+)
+def see_suggestion_not_marked_on_list(page, item_name):
+    suggestion = _suggestion(page, item_name)
+    expect(suggestion).to_be_visible()
+    expect(suggestion.get_by_test_id("on-list-hint")).not_to_be_attached()

@@ -101,6 +101,27 @@ Feature: Push recipe ingredients to a KitchenOwl shopping list
     When I select the shopping list "Groceries"
     Then I see the ingredient "Tomatoes" set to create a new KitchenOwl item
 
+  Scenario: The ingredient review screen hints that a matched item is already on the shopping list
+    Given the shopping list "Groceries" already has the item "Tomatoes" with quantity "100 g"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients:
+      | 2 cups | Tomatoes |
+    When I select the shopping list "Groceries"
+    Then I see the ingredient "Tomatoes" marked as already on the shopping list with the quantity "100 g"
+
+  Scenario: The already-on-the-list hint shows no quantity for a list item that has none
+    Given the shopping list "Groceries" already has the item "Basil" with no quantity
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients:
+      | 1 bunch | Basil |
+    When I select the shopping list "Groceries"
+    Then I see the ingredient "Basil" marked as already on the shopping list with no quantity
+
+  Scenario: An ingredient whose matched item is not on the shopping list gets no such hint
+    Given KitchenOwl already has an item called "Tomatoes"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients:
+      | 2 cups | Tomatoes |
+    When I select the shopping list "Groceries"
+    Then I see the ingredient "Tomatoes" not marked as already on the shopping list
+
   Scenario: Changing the matched KitchenOwl item for an ingredient pushes it as that item instead
     Given KitchenOwl already has an item called "Banana"
     And KitchenOwl already has an item called "Plantain"
@@ -147,3 +168,27 @@ Feature: Push recipe ingredients to a KitchenOwl shopping list
     When I search the existing KitchenOwl items for "xyzzy"
     Then I see no KitchenOwl items suggested
     And I see the ingredient "Tomatoes" set to create a new KitchenOwl item
+
+  Scenario: A suggested item that is already on the shopping list is marked with its quantity
+    Given the shopping list "Groceries" already has the item "Tomato" with quantity "100 g"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients:
+      |  | Basil |
+    And I have selected the shopping list "Groceries"
+    When I search the existing KitchenOwl items for "tom"
+    Then I see the suggested KitchenOwl item "Tomato" marked as already on the shopping list with the quantity "100 g"
+
+  Scenario: A suggested item that is not on the shopping list is not marked
+    Given KitchenOwl already has an item called "Banana"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients:
+      |  | Basil |
+    And I have selected the shopping list "Groceries"
+    When I search the existing KitchenOwl items for "ban"
+    Then I see the suggested KitchenOwl item "Banana" not marked as already on the shopping list
+
+  Scenario: A suggested item that is only on a different shopping list is not marked
+    Given the shopping list "Household" already has the item "Tomato" with quantity "100 g"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients:
+      |  | Basil |
+    And I have selected the shopping list "Groceries"
+    When I search the existing KitchenOwl items for "tom"
+    Then I see the suggested KitchenOwl item "Tomato" not marked as already on the shopping list

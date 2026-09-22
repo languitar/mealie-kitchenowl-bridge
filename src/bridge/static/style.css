@@ -45,3 +45,21 @@
 .ingredient-row select {
   display: none;
 }
+
+/* "Already on the list" hint - shown next to the row's chosen item and on
+   each suggestion, so it reads as an annotation rather than a control. */
+.on-list-hint {
+  color: var(--bulma-text-weak);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* Reserved even when empty, so the search fields line up down the column
+   whether or not a row has a hint to show. */
+.ingredient-row .selected-item-hint {
+  flex: 0 0 7.5rem;
+}
+
+.dropdown-item .on-list-hint {
+  margin-left: 0.4rem;
+}

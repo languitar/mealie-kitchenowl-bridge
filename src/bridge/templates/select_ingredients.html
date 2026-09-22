@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_on_list_hint.html" import on_list_hint %}
 
 {% block title %}Select ingredients for "{{ shopping_list_name }}"{% endblock %}
 
@@ -23,7 +24,7 @@
                  placeholder="Search or leave empty to create a new item"
                  autocomplete="off"
                  oninput="this.closest('.ingredient-row').querySelector('select').value='new'"
-                 hx-get="{{ url_for('review.search_items') }}"
+                 hx-get="{{ url_for('review.search_items', list_id=list_id) }}"
                  hx-trigger="input changed delay:200ms, focus"
                  hx-target="next .dropdown-content"
                  hx-include="this" />
@@ -38,6 +39,12 @@
           {% endif %}
         </select>
       </div>
+      {# Filled in by the suggestion buttons when a different item is picked. #}
+      <span class="selected-item-hint" data-testid="selected-item-hint">
+        {%- if match and match.id in quantities_on_list -%}
+        {{ on_list_hint(quantities_on_list[match.id]) }}
+        {%- endif -%}
+      </span>
       <input type="hidden" name="quantity:{{ ingredient.name }}" value="{{ ingredient.quantity or '' }}" />
     </div>
     {% endfor %}

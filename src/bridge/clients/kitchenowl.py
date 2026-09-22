@@ -12,13 +12,35 @@ class KitchenOwlClient:
     def _headers(self) -> dict:
         return {"Authorization": f"Bearer {self.api_token}"}
 
-    def get_shopping_lists(self) -> list[dict]:
+    def _shopping_lists(self) -> list[dict]:
         response = requests.get(
             f"{self.base_url}/api/household/{self.household_id}/shoppinglist",
             headers=self._headers(),
         )
         response.raise_for_status()
-        return [{"id": item["id"], "name": item["name"]} for item in response.json()]
+        return response.json()
+
+    def get_shopping_lists(self) -> list[dict]:
+        return [{"id": item["id"], "name": item["name"]} for item in self._shopping_lists()]
+
+    def get_shopping_list_items(self, list_id: int) -> list[dict]:
+        """List the items currently on one shopping list, with the quantity each carries.
+
+        KitchenOwl returns every list's items inline with the household's
+        shopping lists, so this reuses that payload rather than asking for one
+        list on its own.
+        """
+        shopping_list = next((sl for sl in self._shopping_lists() if sl["id"] == list_id), None)
+        if shopping_list is None:
+            return []
+        return [
+            {
+                "id": item["id"],
+                "name": item["name"],
+                "description": item.get("description") or "",
+            }
+            for item in shopping_list.get("items", [])
+        ]
 
     def get_items(self) -> list[dict]:
         """List every item in the household's catalog (across all shopping lists)."""
