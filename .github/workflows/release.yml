@@ -23,8 +23,16 @@ jobs:
       issues: write
       pull-requests: write
     steps:
+      # Checked out over SSH with a deploy key, so @semantic-release/git's
+      # version-bump push to main goes out as that key rather than as
+      # GITHUB_TOKEN. main's ruleset names deploy keys as a bypass actor;
+      # GITHUB_TOKEN has no bypass available to it (GitHub only grants that to
+      # app installations, and the first-party Actions app cannot be named as a
+      # bypass actor on a user-owned repo), so its push is rejected by the
+      # required status checks it can never satisfy on a direct push.
       - uses: actions/checkout@v4
         with:
+          ssh-key: ${{ secrets.RELEASE_SSH_KEY }}
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
