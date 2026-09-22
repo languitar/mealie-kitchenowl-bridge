@@ -3,49 +3,45 @@
 {% block title %}Select ingredients for "{{ shopping_list_name }}"{% endblock %}
 
 {% block content %}
-<h1 class="title">Add ingredients to "{{ shopping_list_name }}"</h1>
+<h1 class="title is-5">Add ingredients to "{{ shopping_list_name }}"</h1>
 <form method="post" action="{{ url_for('review.push_to_shopping_list', list_id=list_id) }}">
-  {% for ingredient in ingredients %}
-  {% set match = matches.get(ingredient.name) %}
-  <div class="box ingredient-row" role="group" aria-label="{{ ingredient.name }}">
-    <div class="columns is-vcentered is-mobile">
-      <div class="column">
-        <label class="checkbox">
-          <input type="checkbox" name="ingredient" value="{{ ingredient.name }}" checked />
-          {{ ingredient.name }}
-          {% if ingredient.quantity %}
-          <span class="has-text-grey" data-testid="ingredient-quantity">({{ ingredient.quantity }})</span>
-          {% endif %}
-        </label>
-      </div>
-      <div class="column">
-        <div class="dropdown">
-          <div class="dropdown-trigger">
-            <input type="text" class="input item-search-input" name="q"
-                   value="{{ match.name if match else '' }}"
-                   placeholder="Search or leave empty to create a new item"
-                   autocomplete="off"
-                   oninput="this.closest('.ingredient-row').querySelector('select').value='new'"
-                   hx-get="{{ url_for('review.search_items') }}"
-                   hx-trigger="input changed delay:200ms, focus"
-                   hx-target="next .dropdown-content"
-                   hx-include="this" />
-          </div>
-          <div class="dropdown-menu">
-            <div class="dropdown-content"></div>
-          </div>
-          <select name="item_choice:{{ ingredient.name }}" data-testid="item-choice">
-            <option value="new" {% if not match %}selected{% endif %}>Create new item</option>
-            {% if match %}
-            <option value="{{ match.id }}" selected>{{ match.name }}</option>
-            {% endif %}
-          </select>
+  <div class="ingredient-list">
+    {% for ingredient in ingredients %}
+    {% set match = matches.get(ingredient.name) %}
+    <div class="ingredient-row" role="group" aria-label="{{ ingredient.name }}">
+      <label class="checkbox ingredient-name">
+        <input type="checkbox" name="ingredient" value="{{ ingredient.name }}" checked />
+        {{ ingredient.name }}
+        {% if ingredient.quantity %}
+        <span class="has-text-grey" data-testid="ingredient-quantity">({{ ingredient.quantity }})</span>
+        {% endif %}
+      </label>
+      <div class="dropdown">
+        <div class="dropdown-trigger">
+          <input type="text" class="input is-small item-search-input" name="q"
+                 value="{{ match.name if match else '' }}"
+                 placeholder="Search or leave empty to create a new item"
+                 autocomplete="off"
+                 oninput="this.closest('.ingredient-row').querySelector('select').value='new'"
+                 hx-get="{{ url_for('review.search_items') }}"
+                 hx-trigger="input changed delay:200ms, focus"
+                 hx-target="next .dropdown-content"
+                 hx-include="this" />
         </div>
+        <div class="dropdown-menu">
+          <div class="dropdown-content"></div>
+        </div>
+        <select name="item_choice:{{ ingredient.name }}" data-testid="item-choice">
+          <option value="new" {% if not match %}selected{% endif %}>Create new item</option>
+          {% if match %}
+          <option value="{{ match.id }}" selected>{{ match.name }}</option>
+          {% endif %}
+        </select>
       </div>
+      <input type="hidden" name="quantity:{{ ingredient.name }}" value="{{ ingredient.quantity or '' }}" />
     </div>
-    <input type="hidden" name="quantity:{{ ingredient.name }}" value="{{ ingredient.quantity or '' }}" />
+    {% endfor %}
   </div>
-  {% endfor %}
   <button type="submit" class="button is-primary">Add to shopping list</button>
 </form>
 {% endblock %}

@@ -2,7 +2,41 @@
   display: block;
 }
 
-.ingredient-row .dropdown,
+/* The ingredient review screen is a dense, one-line-per-ingredient list
+   rather than a card per ingredient, so that a long recipe still fits on
+   screen without scrolling. */
+.ingredient-list {
+  border: 1px solid var(--bulma-border);
+  border-radius: var(--bulma-radius);
+  /* Keeps the name and its item field close together on wide screens
+     instead of pushing them to opposite edges. */
+  max-width: 44rem;
+  margin-bottom: 1rem;
+}
+
+.ingredient-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  padding: 0.3rem 0.6rem;
+}
+
+.ingredient-row + .ingredient-row {
+  border-top: 1px solid var(--bulma-border-weak);
+}
+
+/* Both halves of a row share the width, but each keeps a readable minimum
+   and wraps onto its own line instead of being squeezed on narrow screens. */
+.ingredient-row .ingredient-name {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.ingredient-row .dropdown {
+  flex: 1 1 16rem;
+}
+
 .ingredient-row .dropdown-trigger,
 .ingredient-row .dropdown-menu {
   width: 100%;
