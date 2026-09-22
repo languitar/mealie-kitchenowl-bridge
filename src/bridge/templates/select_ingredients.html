@@ -10,6 +10,9 @@
     <table class="table is-narrow ingredient-table">
     <thead>
       <tr>
+        {# Deliberately unlabelled so the column stays as narrow as its checkbox;
+           the name is there for screen readers only. #}
+        <th scope="col"><span class="is-sr-only">Include</span></th>
         <th scope="col">Ingredient</th>
         <th scope="col">KitchenOwl item</th>
         <th scope="col">Already on list</th>
@@ -21,9 +24,12 @@
       {# aria-label pins the row's accessible name to the ingredient, so it stays
          stable as the other cells change (an item picked, suggestions opened). #}
       <tr class="ingredient-row" aria-label="{{ ingredient.name }}">
-        <td>
-          <label class="checkbox">
-            <input type="checkbox" name="ingredient" value="{{ ingredient.name }}" checked />
+        <td class="select-cell">
+          <input type="checkbox" id="ingredient-{{ loop.index }}"
+                 name="ingredient" value="{{ ingredient.name }}" checked />
+        </td>
+        <td class="ingredient-cell">
+          <label class="checkbox" for="ingredient-{{ loop.index }}">
             {{ ingredient.name }}
             {% if ingredient.quantity %}
             <span class="has-text-grey" data-testid="ingredient-quantity">({{ ingredient.quantity }})</span>
@@ -31,7 +37,7 @@
           </label>
           <input type="hidden" name="quantity:{{ ingredient.name }}" value="{{ ingredient.quantity or '' }}" />
         </td>
-        <td>
+        <td class="item-cell">
           <div class="dropdown">
             <div class="dropdown-trigger">
               <input type="text" class="input is-small item-search-input" name="q"

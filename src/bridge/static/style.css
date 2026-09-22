@@ -24,20 +24,27 @@
   color: var(--bulma-text-weak);
 }
 
-.ingredient-table td .dropdown,
-.ingredient-table td .dropdown-trigger,
-.ingredient-table td .dropdown-menu {
+.ingredient-table .item-cell .dropdown,
+.ingredient-table .item-cell .dropdown-trigger,
+.ingredient-table .item-cell .dropdown-menu {
   width: 100%;
+}
+
+/* Only as wide as the checkbox it holds - its header is deliberately unlabelled
+   so nothing else can stretch it. */
+.ingredient-table .select-cell {
+  width: 1px;
+  padding-right: 0;
 }
 
 /* One ingredient per line - wrapping a name over several lines would undo the
    density the table is for. */
-.ingredient-table td:first-child {
+.ingredient-table .ingredient-cell {
   white-space: nowrap;
 }
 
 /* The item column carries the search box, so it gets a workable minimum. */
-.ingredient-table td:nth-child(2) {
+.ingredient-table .item-cell {
   min-width: 18rem;
 }
 
@@ -63,11 +70,11 @@
 /* Too narrow for the table's natural widths: let names wrap and the search box
    shrink, rather than making the whole table scroll sideways. */
 @media (max-width: 34rem) {
-  .ingredient-table td:first-child {
+  .ingredient-table .ingredient-cell {
     white-space: normal;
   }
 
-  .ingredient-table td:nth-child(2) {
+  .ingredient-table .item-cell {
     min-width: 8rem;
   }
 
