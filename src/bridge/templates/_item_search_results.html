@@ -10,7 +10,7 @@
                      select.add(new Option('Create new item', 'new'));
                      select.add(new Option('{{ item.name|e }}', '{{ item.id }}', false, true));
                      let hint=this.querySelector('.on-list-hint');
-                     row.querySelector('.selected-item-hint')
+                     row.querySelector('.on-list-cell')
                         .replaceChildren(...(hint ? [hint.cloneNode(true)] : []));
                      row.querySelector('.dropdown-content').innerHTML='';">
   {{ item.name }}

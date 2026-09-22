@@ -88,7 +88,7 @@ def see_shopping_lists(page, first_list, second_list):
 
 
 def _ingredient_row(page, ingredient_name: str):
-    return page.get_by_role("group", name=ingredient_name)
+    return page.get_by_role("row", name=ingredient_name)
 
 
 @given(parsers.parse('I have selected the shopping list "{list_name}"'))
@@ -141,13 +141,13 @@ def see_ingredient_set_to_create_new(page, ingredient):
     expect(item_choice).to_have_value("new")
 
 
-def _selected_item_hint(page, ingredient_name: str):
-    """The row's hint about the item it currently has chosen.
+def _on_list_cell(page, ingredient_name: str):
+    """The row's "Already on list" cell, for the item it currently has chosen.
 
-    Scoped to its own slot rather than the whole row, so an open suggestion
-    list (whose entries carry the same hint) can't make this ambiguous.
+    Scoped to that cell rather than the whole row, so an open suggestion list
+    (whose entries carry the same marker) can't make this ambiguous.
     """
-    return _ingredient_row(page, ingredient_name).get_by_test_id("selected-item-hint")
+    return _ingredient_row(page, ingredient_name).get_by_test_id("on-list-cell")
 
 
 @then(
@@ -157,9 +157,9 @@ def _selected_item_hint(page, ingredient_name: str):
     )
 )
 def see_ingredient_marked_on_list(page, ingredient, quantity):
-    hint = _selected_item_hint(page, ingredient)
-    expect(hint.get_by_test_id("on-list-hint")).to_be_visible()
-    expect(hint.get_by_test_id("on-list-quantity")).to_have_text(f"({quantity})")
+    cell = _on_list_cell(page, ingredient)
+    expect(cell.get_by_test_id("on-list-hint")).to_be_visible()
+    expect(cell.get_by_test_id("on-list-quantity")).to_have_text(quantity)
 
 
 @then(
@@ -169,17 +169,17 @@ def see_ingredient_marked_on_list(page, ingredient, quantity):
     )
 )
 def see_ingredient_marked_on_list_without_quantity(page, ingredient):
-    hint = _selected_item_hint(page, ingredient)
-    expect(hint.get_by_test_id("on-list-hint")).to_be_visible()
-    expect(hint.get_by_test_id("on-list-quantity")).not_to_be_attached()
+    cell = _on_list_cell(page, ingredient)
+    expect(cell.get_by_test_id("on-list-hint")).to_be_visible()
+    expect(cell.get_by_test_id("on-list-quantity")).not_to_be_attached()
 
 
 @then(
     parsers.parse('I see the ingredient "{ingredient}" not marked as already on the shopping list')
 )
 def see_ingredient_not_marked_on_list(page, ingredient):
-    hint = _selected_item_hint(page, ingredient)
-    expect(hint.get_by_test_id("on-list-hint")).not_to_be_attached()
+    cell = _on_list_cell(page, ingredient)
+    expect(cell.get_by_test_id("on-list-hint")).not_to_be_attached()
 
 
 @when(parsers.parse('I deselect the ingredient "{ingredient}"'))
@@ -385,7 +385,7 @@ def _suggestion(page, item_name: str):
 def see_suggestion_marked_on_list(page, item_name, quantity):
     suggestion = _suggestion(page, item_name)
     expect(suggestion.get_by_test_id("on-list-hint")).to_be_visible()
-    expect(suggestion.get_by_test_id("on-list-quantity")).to_have_text(f"({quantity})")
+    expect(suggestion.get_by_test_id("on-list-quantity")).to_have_text(quantity)
 
 
 @then(
