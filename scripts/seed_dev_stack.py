@@ -215,7 +215,10 @@ def seed_kitchenowl() -> tuple[str, int]:
         response = requests.post(
             f"{KITCHENOWL_URL}/api/household",
             headers=headers,
-            json={"name": _KITCHENOWL_HOUSEHOLD_NAME},
+            # language triggers KitchenOwl's built-in catalog of known items
+            # (names/icons/categories) to be imported in the background -
+            # without it, the household starts with an empty item catalog.
+            json={"name": _KITCHENOWL_HOUSEHOLD_NAME, "language": "en"},
         )
         response.raise_for_status()
         household_id = response.json()["id"]
