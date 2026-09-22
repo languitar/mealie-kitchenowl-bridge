@@ -118,6 +118,27 @@ def _wait_until_ready(name: str, url: str, timeout: float = 90) -> None:
     raise TimeoutError(f"{name} did not become ready within {timeout}s") from last_error
 
 
+def _get_or_create_id(url: str, name: str, headers: dict[str, str], cache: dict[str, str]) -> str:
+    """Finds an existing food/unit by exact name (Mealie's ?search= does
+    substring matching, so results need filtering) or creates one - recipes
+    can only reference these by id, not by bare name (unlike what the
+    pydantic schema's str->object validators might suggest)."""
+    key = name.casefold()
+    if key in cache:
+        return cache[key]
+
+    response = requests.get(url, headers=headers, params={"search": name, "perPage": 100})
+    response.raise_for_status()
+    match = next((i for i in response.json()["items"] if i["name"].casefold() == key), None)
+    if match is None:
+        response = requests.post(url, headers=headers, json={"name": name})
+        response.raise_for_status()
+        match = response.json()
+
+    cache[key] = match["id"]
+    return match["id"]
+
+
 def seed_mealie() -> str:
     print("Waiting for Mealie...")
     _wait_until_ready("Mealie", f"{MEALIE_URL}/api/app/about")
@@ -128,6 +149,9 @@ def seed_mealie() -> str:
     )
     response.raise_for_status()
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+    food_ids: dict[str, str] = {}
+    unit_ids: dict[str, str] = {}
 
     for name, ingredients in _RECIPES:
         slug = _slugify(name)
@@ -142,10 +166,25 @@ def seed_mealie() -> str:
         response = requests.get(f"{MEALIE_URL}/api/recipes/{slug}", headers=headers)
         response.raise_for_status()
         recipe = response.json()
-        recipe["recipeIngredient"] = [
-            {"quantity": quantity, "unit": unit, "food": food, "note": note}
-            for quantity, unit, food, note in ingredients
-        ]
+
+        units_url = f"{MEALIE_URL}/api/units"
+        foods_url = f"{MEALIE_URL}/api/foods"
+        recipe_ingredients = []
+        for quantity, unit, food, note in ingredients:
+            unit_id = _get_or_create_id(units_url, unit, headers, unit_ids) if unit else None
+            food_id = _get_or_create_id(foods_url, food, headers, food_ids) if food else None
+            # name is required alongside id: Mealie's IngredientUnit/Food is a
+            # union of the "existing" and "create" variants, and validates
+            # against both - id-only fails the "create" branch's required name.
+            recipe_ingredients.append(
+                {
+                    "quantity": quantity,
+                    "unit": {"id": unit_id, "name": unit} if unit_id else None,
+                    "food": {"id": food_id, "name": food} if food_id else None,
+                    "note": note,
+                }
+            )
+        recipe["recipeIngredient"] = recipe_ingredients
         response = requests.put(
             f"{MEALIE_URL}/api/recipes/{slug}", headers=headers, json=recipe
         )
