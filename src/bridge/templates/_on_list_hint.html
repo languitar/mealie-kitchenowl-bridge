@@ -1,0 +1,6 @@
+{# Shared by the review table's "Already on list" column and the item
+   suggestions. The column header carries the wording, so the marker itself is
+   just the quantity already on the list (or a tick, for an item on the list
+   without one) - the `title` stands in for that header inside the suggestion
+   list, which has no header of its own. #}
+{% macro on_list_hint(quantity) %}<span class="on-list-hint" data-testid="on-list-hint" title="Already on this shopping list">{% if quantity %}<span data-testid="on-list-quantity">{{ quantity }}</span>{% else %}&check;{% endif %}</span>{% endmacro %}

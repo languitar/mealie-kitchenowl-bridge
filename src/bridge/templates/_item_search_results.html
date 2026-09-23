@@ -1,13 +1,20 @@
+{% from "_on_list_hint.html" import on_list_hint %}
 {% for item in items %}
-<button type="button" class="dropdown-item"
+{# The visible "on the list" hint is kept out of the button's accessible name
+   (via aria-label) so that the name stays exactly the item's own name. #}
+<button type="button" class="dropdown-item" aria-label="{{ item.name }}"
         hx-on:click="let row=this.closest('.ingredient-row');
                      row.querySelector('.item-search-input').value='{{ item.name|e }}';
                      let select=row.querySelector('select');
                      select.innerHTML='';
                      select.add(new Option('Create new item', 'new'));
                      select.add(new Option('{{ item.name|e }}', '{{ item.id }}', false, true));
+                     let hint=this.querySelector('.on-list-hint');
+                     row.querySelector('.on-list-cell')
+                        .replaceChildren(...(hint ? [hint.cloneNode(true)] : []));
                      row.querySelector('.dropdown-content').innerHTML='';">
   {{ item.name }}
+  {% if item.id in quantities_on_list %}{{ on_list_hint(quantities_on_list[item.id]) }}{% endif %}
 </button>
 {% else %}
 <div class="dropdown-item has-text-grey">No matching items</div>

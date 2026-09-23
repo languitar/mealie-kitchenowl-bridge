@@ -2,12 +2,88 @@
   display: block;
 }
 
-.ingredient-row .dropdown,
-.ingredient-row .dropdown-trigger,
-.ingredient-row .dropdown-menu {
+/* The ingredient review screen is a dense table rather than a card per
+   ingredient, so that a long recipe still fits on screen without scrolling. */
+.ingredient-table {
+  /* Sized to its content rather than the full container, so the columns stay
+     next to each other instead of drifting apart on a wide screen. */
+  width: auto;
+  margin-bottom: 1rem;
+}
+
+.ingredient-table th,
+.ingredient-table td {
+  vertical-align: middle;
+}
+
+.ingredient-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--bulma-text-weak);
+}
+
+.ingredient-table .item-cell .dropdown,
+.ingredient-table .item-cell .dropdown-trigger,
+.ingredient-table .item-cell .dropdown-menu {
   width: 100%;
+}
+
+/* Only as wide as the checkbox it holds - its header is deliberately unlabelled
+   so nothing else can stretch it. */
+.ingredient-table .select-cell {
+  width: 1px;
+  padding-right: 0;
+}
+
+/* One ingredient per line - wrapping a name over several lines would undo the
+   density the table is for. */
+.ingredient-table .ingredient-cell {
+  white-space: nowrap;
+}
+
+/* The item column carries the search box, so it gets a workable minimum. */
+.ingredient-table .item-cell {
+  min-width: 18rem;
 }
 
 .ingredient-row select {
   display: none;
+}
+
+/* Quantity already on the shopping list (or a tick when it carries none).
+   The column header supplies the wording; in the suggestion list, where
+   there is no header, the marker's `title` does. */
+.on-list-hint {
+  color: var(--bulma-text-weak);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.ingredient-table th:last-child,
+.on-list-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Too narrow for the table's natural widths: let names wrap and the search box
+   shrink, rather than making the whole table scroll sideways. */
+@media (max-width: 34rem) {
+  .ingredient-table .ingredient-cell {
+    white-space: normal;
+  }
+
+  .ingredient-table .item-cell {
+    min-width: 8rem;
+  }
+
+  /* Wrapping the header buys the ingredient column the width it needs more. */
+  .ingredient-table th:last-child {
+    white-space: normal;
+  }
+}
+
+.dropdown-item .on-list-hint {
+  margin-left: 0.5rem;
 }

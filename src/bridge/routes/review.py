@@ -21,6 +21,16 @@ def _shopping_list_name(client: KitchenOwlClient, list_id: int) -> str | None:
     return next((sl["name"] for sl in client.get_shopping_lists() if sl["id"] == list_id), None)
 
 
+def _quantities_on_list(client: KitchenOwlClient, list_id: int) -> dict[int, str]:
+    """Map each item already on the shopping list to the quantity it carries there.
+
+    Backs the "already on the list" hint on the review screen - membership is
+    of *this* list, not of the household's item catalog, so an item the
+    household knows but that isn't on the chosen list gets no hint.
+    """
+    return {item["id"]: item["description"] for item in client.get_shopping_list_items(list_id)}
+
+
 def render_shopping_list_selection(recipe_name: str, ingredients: list[Ingredient]):
     """Render the dialog for picking which KitchenOwl shopping list to push to.
 
@@ -73,21 +83,26 @@ def review_ingredients(list_id: int):
         shopping_list_name=_shopping_list_name(client, list_id),
         ingredients=ingredients,
         matches=matches,
+        quantities_on_list=_quantities_on_list(client, list_id),
     )
 
 
-@review_bp.get("/items/search")
-def search_items():
+@review_bp.get("/shopping-lists/<int:list_id>/items/search")
+def search_items(list_id: int):
     """Return a fragment of KitchenOwl items fuzzy-ranked against a search query.
 
     Backs the item-search input on the ingredient review screen (see
     `select_ingredients.html`) - queried live via HTMX as the user types,
-    independently of which ingredient row triggered it.
+    independently of which ingredient row triggered it. It is scoped to a
+    shopping list only so that each suggestion can say whether it is already
+    on that list.
     """
     client = _kitchenowl_client()
     items = [KitchenOwlItem(id=item["id"], name=item["name"]) for item in client.get_items()]
     return render_template(
-        "_item_search_results.html", items=rank_items(request.args.get("q", ""), items)
+        "_item_search_results.html",
+        items=rank_items(request.args.get("q", ""), items),
+        quantities_on_list=_quantities_on_list(client, list_id),
     )
 
 
