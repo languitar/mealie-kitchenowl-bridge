@@ -412,3 +412,37 @@ def see_suggestion_not_marked_on_list(page, item_name):
     suggestion = _suggestion(page, item_name)
     expect(suggestion).to_be_visible()
     expect(suggestion.get_by_test_id("on-list-hint")).not_to_be_attached()
+
+
+# A common small-phone viewport. Phones are an explicit target for this app (see
+# AGENTS.md), and this is where the review screen's columns stop fitting.
+_PHONE_VIEWPORT = {"width": 360, "height": 740}
+
+
+@given("I am using a phone-sized screen")
+def using_phone_sized_screen(page):
+    page.set_viewport_size(_PHONE_VIEWPORT)
+
+
+# Horizontal overflow is the symptom of a layout that doesn't fit: either the
+# page is wider than the screen, or some element inside it (Bulma's
+# `.table-container` around a too-wide table, say) has put the excess behind a
+# sideways scroll of its own - which cuts content off where nothing suggests it
+# is there. Only elements that actually scroll count, so that deliberately
+# clipped content (Bulma's `is-sr-only`, whose text is meant for screen readers
+# only) isn't reported. The 1px tolerance absorbs sub-pixel rounding.
+_HORIZONTAL_OVERFLOW_JS = """() => {
+    const scrollsSideways = (el) =>
+        el.scrollWidth > el.clientWidth + 1 &&
+        ['auto', 'scroll'].includes(getComputedStyle(el).overflowX);
+    const offenders = [...document.querySelectorAll('body *')].filter(scrollsSideways);
+    const doc = document.documentElement;
+    if (doc.scrollWidth > doc.clientWidth + 1) offenders.unshift(doc);
+    return offenders.map((el) => el.tagName.toLowerCase() + '.' + el.className);
+}"""
+
+
+@then("nothing on the screen is cut off or needs scrolling sideways")
+def nothing_cut_off_sideways(page):
+    offenders = page.evaluate(_HORIZONTAL_OVERFLOW_JS)
+    assert offenders == [], f"wider than the space they are given: {offenders}"

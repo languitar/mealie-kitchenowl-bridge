@@ -211,3 +211,22 @@ Feature: Push recipe ingredients to a KitchenOwl shopping list
     And I have selected the shopping list "Groceries"
     When I search the existing KitchenOwl items for "tom"
     Then I see the suggested KitchenOwl item "Tomato" not marked as already on the shopping list
+
+  Scenario: The ingredient review screen fits a phone's screen
+    Given I am using a phone-sized screen
+    And the shopping list "Groceries" already has the item "Tomatoes" with quantity "100 g"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients and notes:
+      | 500 g   | Tomatoes | preferably San Marzano |
+      | 1 bunch | Basil    |                        |
+    When I select the shopping list "Groceries"
+    Then nothing on the screen is cut off or needs scrolling sideways
+
+  Scenario: The item suggestions fit a phone's screen
+    Given I am using a phone-sized screen
+    And KitchenOwl already has an item called "Tomato"
+    And a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients:
+      |  | Basil |
+    And I have selected the shopping list "Groceries"
+    When I search the existing KitchenOwl items for "tom"
+    Then I see the KitchenOwl item "Tomato" suggested
+    And nothing on the screen is cut off or needs scrolling sideways
