@@ -32,6 +32,25 @@ Feature: Push recipe ingredients to a KitchenOwl shopping list
     When I select the shopping list "Groceries"
     Then I see the ingredient "Basil" with no quantity shown
 
+  Scenario: The ingredient review screen shows an ingredient's note from Mealie
+    Given a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients and notes:
+      | 2 cups | Tomatoes | preferably San Marzano |
+    When I select the shopping list "Groceries"
+    Then I see the ingredient "Tomatoes" with the note "preferably San Marzano"
+
+  Scenario: The ingredient review screen shows no note for an ingredient without one
+    Given a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients and notes:
+      | 1 bunch | Basil |  |
+    When I select the shopping list "Groceries"
+    Then I see the ingredient "Basil" with no note shown
+
+  Scenario: An ingredient's note is not carried into KitchenOwl's item description
+    Given a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients and notes:
+      | 2 cups | Tomatoes | preferably San Marzano |
+    And I have selected the shopping list "Groceries"
+    When I confirm the ingredient selection
+    Then the ingredient "Tomatoes" is added to the "Groceries" shopping list in KitchenOwl with the description "2 cups"
+
   Scenario: Confirming the ingredient selection adds all pre-selected ingredients to the shopping list
     Given a Mealie recipe action is triggered for the recipe "Tomato Soup" with the ingredients:
       |  | Tomatoes |

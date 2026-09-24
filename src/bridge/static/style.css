@@ -43,6 +43,19 @@
   white-space: nowrap;
 }
 
+/* Mealie shows an ingredient's note beneath the ingredient itself, smaller and
+   dimmer - mirrored here so the note informs the choice without competing with
+   the name. */
+.ingredient-table .ingredient-note {
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  color: var(--bulma-text-weak);
+  /* The name above it stays on one line, but a note is free text - let it wrap
+     rather than stretch the column. */
+  white-space: normal;
+  max-width: 16rem;
+}
+
 /* The item column carries the search box, so it gets a workable minimum. */
 .ingredient-table .item-cell {
   min-width: 18rem;

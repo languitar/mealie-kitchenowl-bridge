@@ -47,15 +47,23 @@ def render_shopping_list_selection(recipe_name: str, ingredients: list[Ingredien
 
 
 def _ingredients_from_form(form: MultiDict) -> list[Ingredient]:
-    """Reassemble ingredients (with quantity) from the round-tripped form fields.
+    """Reassemble ingredients (with quantity and note) from the round-tripped form fields.
 
-    Each ingredient's quantity travels in its own `quantity:<name>` field
-    (see the templates) rather than a same-order parallel list, so that
-    deselecting an ingredient's checkbox can't desynchronize name/quantity
-    pairs.
+    Each ingredient's quantity and note travel in their own `quantity:<name>`
+    and `note:<name>` fields (see the templates) rather than same-order
+    parallel lists, so that deselecting an ingredient's checkbox can't
+    desynchronize them from their names.
+
+    The note only has to survive the hop from the shopping-list selection to
+    the review screen that displays it; the review screen doesn't send it on
+    (it isn't pushed to KitchenOwl), so it simply comes back as `None` there.
     """
     return [
-        Ingredient(name=name, quantity=form.get(f"quantity:{name}") or None)
+        Ingredient(
+            name=name,
+            quantity=form.get(f"quantity:{name}") or None,
+            note=form.get(f"note:{name}") or None,
+        )
         for name in form.getlist("ingredient")
     ]
 
