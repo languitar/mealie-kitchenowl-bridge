@@ -65,16 +65,19 @@ def _split_quantity(quantity: str) -> tuple[float, str | None]:
     return float(amount), unit_name or None
 
 
-def build_ingredient(quantity: str, name: str) -> dict:
+def build_ingredient(quantity: str, name: str, note: str = "") -> dict:
     """Build a `recipeIngredient` dict for `stub_recipe`, as parsed from one row of a
-    trigger step's data table (an empty `quantity` cell means no quantity).
+    trigger step's data table (an empty `quantity` or `note` cell means that field
+    is absent).
     """
+    ingredient = {"display": name, "food": {"name": name}}
+    if note:
+        ingredient["note"] = note
     if not quantity:
-        return {"display": name, "food": {"name": name}}
+        return ingredient
     amount, unit_name = _split_quantity(quantity)
-    return {
+    return ingredient | {
         "display": f"{quantity} {name}",
-        "food": {"name": name},
         "quantity": amount,
         "unit": {"name": unit_name} if unit_name else None,
     }
@@ -85,11 +88,21 @@ _TRIGGER_TEXT = (
     "with the ingredients:"
 )
 
+# Same step, with a third column for each ingredient's Mealie note. Kept as its
+# own phrasing rather than widening the table above, so the many scenarios that
+# don't care about notes don't have to carry an empty cell each.
+_TRIGGER_WITH_NOTES_TEXT = (
+    'a Mealie recipe action is triggered for the recipe "{recipe_name}" '
+    "with the ingredients and notes:"
+)
+
 
 @given(parsers.parse(_TRIGGER_TEXT))
 @when(parsers.parse(_TRIGGER_TEXT))
+@given(parsers.parse(_TRIGGER_WITH_NOTES_TEXT))
+@when(parsers.parse(_TRIGGER_WITH_NOTES_TEXT))
 def recipe_action_triggered(page, live_server, requests_mock, config, recipe_name, datatable):
-    recipe_ingredients = [build_ingredient(quantity, name) for quantity, name in datatable]
+    recipe_ingredients = [build_ingredient(*row) for row in datatable]
     slug = slugify(recipe_name)
     stub_recipe(requests_mock, config, slug, recipe_name, recipe_ingredients)
     page.goto(f"{live_server.url('/recipes/action')}?slug={slug}")

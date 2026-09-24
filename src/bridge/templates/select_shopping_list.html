@@ -10,6 +10,7 @@
     {% for ingredient in ingredients %}
     <input type="hidden" name="ingredient" value="{{ ingredient.name }}" />
     <input type="hidden" name="quantity:{{ ingredient.name }}" value="{{ ingredient.quantity or '' }}" />
+    <input type="hidden" name="note:{{ ingredient.name }}" value="{{ ingredient.note or '' }}" />
     {% endfor %}
     <button type="submit" class="button is-primary">{{ shopping_list.name }}</button>
   </form>

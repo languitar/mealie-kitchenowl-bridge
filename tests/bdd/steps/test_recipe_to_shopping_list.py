@@ -124,6 +124,20 @@ def see_ingredient_no_quantity(page, ingredient):
     expect(_ingredient_quantity(page, ingredient)).not_to_be_attached()
 
 
+def _ingredient_note(page, ingredient_name: str):
+    return _ingredient_row(page, ingredient_name).get_by_test_id("ingredient-note")
+
+
+@then(parsers.parse('I see the ingredient "{ingredient}" with the note "{note}"'))
+def see_ingredient_note(page, ingredient, note):
+    expect(_ingredient_note(page, ingredient)).to_have_text(note)
+
+
+@then(parsers.parse('I see the ingredient "{ingredient}" with no note shown'))
+def see_ingredient_no_note(page, ingredient):
+    expect(_ingredient_note(page, ingredient)).not_to_be_attached()
+
+
 @then(
     parsers.parse(
         'I see the ingredient "{ingredient}" matched to the existing KitchenOwl item "{item_name}"'

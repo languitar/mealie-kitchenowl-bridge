@@ -35,6 +35,13 @@
             <span class="has-text-grey" data-testid="ingredient-quantity">({{ ingredient.quantity }})</span>
             {% endif %}
           </label>
+          {% if ingredient.note %}
+          {# Mealie's free-text remark on the ingredient, shown the way Mealie
+             itself does: under the name, quieter than it. Purely informational
+             (it often decides which product to buy), so it isn't round-tripped
+             on to the push. #}
+          <p class="ingredient-note" data-testid="ingredient-note">{{ ingredient.note }}</p>
+          {% endif %}
           <input type="hidden" name="quantity:{{ ingredient.name }}" value="{{ ingredient.quantity or '' }}" />
         </td>
         <td class="item-cell">

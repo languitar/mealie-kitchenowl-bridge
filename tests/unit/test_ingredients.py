@@ -45,3 +45,33 @@ def test_fractional_quantity_is_not_truncated():
         }
     )
     assert ingredient.quantity == "0.5 cups"
+
+
+def test_note_is_kept_for_display():
+    ingredient = parse_ingredient(
+        {
+            "display": "2 cups Tomatoes, preferably San Marzano",
+            "food": {"name": "Tomatoes"},
+            "quantity": 2,
+            "unit": {"name": "cups"},
+            "note": "preferably San Marzano",
+        }
+    )
+    assert ingredient.note == "preferably San Marzano"
+
+
+def test_note_is_kept_for_an_ingredient_without_a_quantity():
+    ingredient = parse_ingredient(
+        {"display": "Basil, fresh", "food": {"name": "Basil"}, "note": "fresh"}
+    )
+    assert ingredient == Ingredient(name="Basil", quantity=None, note="fresh")
+
+
+def test_no_note_field_means_no_note():
+    ingredient = parse_ingredient({"display": "Basil", "food": {"name": "Basil"}})
+    assert ingredient.note is None
+
+
+def test_empty_note_is_normalized_to_none():
+    ingredient = parse_ingredient({"display": "Basil", "food": {"name": "Basil"}, "note": ""})
+    assert ingredient.note is None

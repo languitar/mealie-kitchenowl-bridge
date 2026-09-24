@@ -107,6 +107,28 @@ See README.md's "Architecture & conventions" section (package layout, blueprint
 structure, UI design direction) and "Commits" section (Conventional
 Commits format used in this repo).
 
+### Screenshots for visual changes
+
+A PR that changes how the UI *looks* - a template's markup, `static/style.css`,
+anything that moves, restyles or adds something on screen - must include
+screenshots of the changed screens in its description, showing the state after
+the change (and, where the difference is the point, before it too). Acceptance
+scenarios assert behavior, not appearance, so a screenshot is the only thing
+that lets a reviewer see what actually shipped.
+
+Capture them the way the BDD tier already drives the app: a throwaway test using
+the `page`/`live_server` fixtures can `page.screenshot(...)` the screen in
+question, which needs no separate tooling and renders the real templates and CSS.
+
+Upload them with `gh`'s `--attach` flag, which takes a local file and rewrites a
+matching reference in the body to the uploaded asset - so this needs no web UI
+and no screenshots committed to the repo:
+
+```bash
+gh pr create --attach './review.png#The review screen with ingredient notes'
+gh pr edit 19 --body-file ./body.md --attach ./review.png   # same for an open PR
+```
+
 ### Rewriting history on feature branches
 
 Unlike the general default of only ever creating new commits, in this repo it's
