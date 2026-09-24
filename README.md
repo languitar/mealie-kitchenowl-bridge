@@ -1,19 +1,86 @@
 # Mealie ↔ KitchenOwl Bridge
 
-> **Disclaimer**: this project is mostly vibe-coded - it's a testbed for exploring
-> agentic coding practices (BDD-driven feature workflows, AI-agent-assisted
-> development) as much as it is a real tool. Expect the usual consequences: review
-> anything here carefully, especially around security and data-handling, before
-> trusting it with real accounts or real data.
+A small Flask web app that connects [Mealie](https://mealie.io/) recipes to
+[KitchenOwl](https://kitchenowl.org/) shopping lists: trigger it from a recipe
+action in Mealie, review the recipe's ingredients in a web UI, and push the ones
+you want onto a KitchenOwl shopping list.
 
-Bridges a Mealie recipe action to a KitchenOwl shopping list: trigger from a recipe
-in Mealie, review the ingredients in a small web UI, and push them onto a
-KitchenOwl shopping list.
+> **Note**: this project is developed largely with AI coding agents and serves as
+> a testbed for agentic coding practices (see [AGENTS.md](AGENTS.md)) as much as
+> it is a working tool. Review it yourself - its security and data handling in
+> particular - before pointing it at real accounts or real data.
 
-This repo is currently a **skeleton**. See [AGENTS.md](AGENTS.md) for the BDD-driven
-workflow used to build out real features, and for what's deliberately not built yet.
+## How it works
 
-Dependencies are managed with [uv](https://docs.astral.sh/uv/), pinned via `uv.lock`.
+1. In Mealie, a recipe action of type **Link** opens the bridge with the recipe's
+   slug in the URL.
+2. The bridge requires an OIDC login, then fetches the recipe from Mealie's API
+   and offers the KitchenOwl household's shopping lists to choose from.
+3. The ingredient review screen lists the recipe's ingredients, all pre-selected,
+   each matched against an existing KitchenOwl item where one looks similar
+   enough.
+4. Confirming adds the selected ingredients to the chosen list and redirects to
+   KitchenOwl.
+
+![The ingredient review screen, showing four ingredients with their quantities, matched KitchenOwl items and an already-on-the-list hint](docs/screenshots/review-screen.png)
+
+What the review screen offers:
+
+- **Quantities** from the recipe are shown next to the ingredient and pushed as
+  the KitchenOwl item's description. An ingredient without a quantity is pushed
+  without a description.
+- **Notes** - Mealie's free-text remark on an ingredient ("preferably San
+  Marzano") - are shown beneath the name, since they often decide which product
+  to buy. They are not pushed to KitchenOwl.
+- **Item matching** pre-selects an existing item from the household's catalog.
+  Names are lemmatized and compared fuzzily, so "Bananas" matches an existing
+  "Banana". The search field next to each ingredient picks a different item;
+  clearing it creates a new item instead.
+- **Already on list** shows the quantity the matched item currently carries on
+  the chosen list, so an ingredient that is already covered is visible before
+  pushing. The same marker appears on search suggestions.
+- **Unchecking** an ingredient excludes it from the push.
+- **Quantity merging** is KitchenOwl's own: the push uses the same
+  `recipeitems` endpoint as KitchenOwl's recipe import, which merges same-unit
+  quantities (100 g plus 50 g becomes 150 g) and otherwise appends the new
+  quantity to the existing description.
+
+After the push, the bridge redirects to KitchenOwl's `/household/<id>/items`
+page. KitchenOwl's frontend has no deep link to a specific shopping list - that
+page always opens on whichever list the user last selected there - so it cannot
+land on the list just pushed to.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    mealie["Mealie"]
+    user(["User's browser"])
+
+    subgraph app ["Bridge (Flask)"]
+        direction TB
+        trigger["trigger<br>GET /recipes/action?slug=..."]
+        review["review<br>list choice, ingredient review, push"]
+        auth["auth<br>login gate on every route but /healthz"]
+    end
+
+    kitchenowl["KitchenOwl"]
+    oidc["OIDC provider"]
+
+    mealie -. "recipe action (Link)" .-> user
+    user -- "opens the action's link" --> trigger
+    user -- "picks a list, reviews, confirms" --> review
+    trigger -- "GET /api/recipes/:slug" --> mealie
+    review -- "shopping lists, item catalog" --> kitchenowl
+    review -- "POST /api/shoppinglist/:id/recipeitems" --> kitchenowl
+    review -. "redirects the user to the list" .-> kitchenowl
+    auth -- "authorization code flow" --> oidc
+```
+
+The app holds no state of its own: there is no database, and the ingredients
+being reviewed travel between the screens in hidden form fields rather than a
+server-side session. KitchenOwl is reached through a single shared household and
+API token, independently of which user is logged in.
 
 ## Setup
 
@@ -28,7 +95,7 @@ uv run playwright install chromium  # needed to run the acceptance (BDD) test su
 All configuration is via environment variables (see `.env.example`):
 
 - `KITCHENOWL_URL` / `KITCHENOWL_API_TOKEN` / `KITCHENOWL_HOUSEHOLD_ID` - a single
-  shared KitchenOwl household and API token. There's no multi-household or
+  shared KitchenOwl household and API token. There is no multi-household or
   per-user KitchenOwl access - everyone who uses the bridge sees and pushes to the
   same household.
 - `OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` - required; the app
@@ -45,11 +112,11 @@ All configuration is via environment variables (see `.env.example`):
 - `MEALIE_URL` / `MEALIE_API_TOKEN` - required; the app refuses to start without
   them. Used to fetch the triggering recipe's ingredients server-side by slug
   (`MEALIE_API_TOKEN` is a long-lived API token, generated in Mealie's user
-  profile). Mealie's "Post"-type recipe action can't redirect your browser to
-  the bridge - it's executed entirely server-side by Mealie's own backend, so
+  profile). Mealie's "Post"-type recipe action cannot redirect your browser to
+  the bridge - it is executed entirely server-side by Mealie's own backend, so
   any response the bridge returns is invisible to you. Only a "Link"-type
-  action causes a real browser navigation, but it can't carry the recipe's
-  data - just whatever's templated into its configured URL - so the bridge
+  action causes a real browser navigation, but it cannot carry the recipe's
+  data - only whatever is templated into its configured URL - so the bridge
   fetches the triggering recipe from Mealie's own API by slug instead.
   Configure Mealie's recipe action as type **Link**, with URL:
   ```
@@ -61,12 +128,11 @@ All configuration is via environment variables (see `.env.example`):
 Every route requires an authenticated OIDC session - including that Link action
 above and the ingredient review/confirm screens - except `GET /healthz`. OIDC
 login only gates the bridge's own UI: KitchenOwl access is still one shared
-household/API token (`KITCHENOWL_*` above) regardless of who's logged in - there's
-no per-user KitchenOwl access (see AGENTS.md's deferred multi-user decision).
+household/API token (`KITCHENOWL_*` above) regardless of who is logged in - there
+is no per-user KitchenOwl access (see AGENTS.md's deferred multi-user decision).
 The app is expected to run behind a TLS-terminating reverse proxy that forwards
 `X-Forwarded-Proto`/`X-Forwarded-Host`, so the OIDC redirect URI it generates
-matches its real public URL. There's also no database - nothing persists across
-requests or restarts.
+matches its real public URL.
 
 ## Running
 
@@ -74,7 +140,7 @@ requests or restarts.
 uv run flask --app bridge.app:create_app run
 ```
 
-`GET /healthz` should respond with `{"status": "ok"}`.
+`GET /healthz` responds with `{"status": "ok"}`.
 
 ## Testing
 
@@ -99,7 +165,7 @@ them. How the two external services are faked differs:
   a browser navigating through it completes the whole authorization-code flow in a
   single hop, with nothing to click.
 - **KitchenOwl** scenarios run against a **real KitchenOwl instance in a
-  container** instead of a mock, so tests can't drift from what KitchenOwl actually
+  container** instead of a mock, so tests cannot drift from what KitchenOwl actually
   does. This is why the suite needs a working local Docker (or Podman, see below)
   daemon - the KitchenOwl image is pulled and started automatically, no manual
   `docker compose up` needed for tests.
@@ -107,7 +173,7 @@ them. How the two external services are faked differs:
 One scenario also runs against a **real Mealie instance in a container** (like
 KitchenOwl's), driving an actual browser click through Mealie's own UI - this is
 the only way to catch bugs in how Mealie's frontend actually triggers the bridge
-(see AGENTS.md), which a direct HTTP call to `/recipes/action` can't.
+(see AGENTS.md), which a direct HTTP call to `/recipes/action` cannot.
 
 ### Using Podman instead of Docker
 
@@ -148,7 +214,7 @@ additionally published under `dev`, its short commit hash, and the build date
 Authelia (as the bridge's OIDC provider) - so the whole recipe-to-shopping-list
 flow can be exercised end-to-end without a real deployment, and without any
 setup: every fixed value (TLS/OIDC certificates and keys, client secrets,
-session key) is a committed throwaway value, and the only things that can't
+session key) is a committed throwaway value, and the only things that cannot
 be hardcoded - Mealie/KitchenOwl API tokens and the KitchenOwl household ID,
 all minted fresh by each new instance - are generated and wired up
 automatically by a `seed` service that runs as part of `up`. One command
@@ -161,7 +227,7 @@ docker compose up --build
 Everything is addressed as `127.0.0.1` rather than `localhost` (Authelia's
 cookie-domain validation requires either a dotted domain or an IP address),
 and Authelia terminates TLS itself with a self-signed certificate (its
-session cookies are always `Secure`, so it can't run over plain HTTP even
+session cookies are always `Secure`, so it cannot run over plain HTTP even
 locally) - your browser will show a certificate warning for
 `https://127.0.0.1:9091` the first time; click through it.
 
@@ -185,15 +251,15 @@ purpose - so "Sign in with Authelia" logs into that same already-seeded
 account, recipes and recipe action included. KitchenOwl links OIDC logins by
 subject ID instead, which has no local-admin equivalent to match against, so
 its "Sign in with OIDC" always provisions a separate account the first time
-it's used - the seed script pre-creates that account itself (driving the
+it is used - the seed script pre-creates that account itself (driving the
 OIDC login non-interactively) and adds it to the seeded household, so it
-still has the shopping list and catalog items, just as a regular member
-rather than the household admin.
+still has the shopping list and catalog items, as a regular member rather
+than the household admin.
 
 `scripts/seed_dev_stack.py` (run by the `seed` service) is safe to re-run -
-it skips anything it already created and just refreshes the tokens it mints,
+it skips anything it already created and refreshes the tokens it mints,
 writing them to a shared volume the `bridge` container sources on startup
-(on top of the fixed values in `docker/dev-stack.env`). If you'd rather run
+(on top of the fixed values in `docker/dev-stack.env`). If you would rather run
 the bridge itself with `uv run flask` against the dev stack instead of
 `docker compose up --build bridge`, run `cp .env.dev-stack.example .env`
 first and re-run `docker compose up --build seed` - it also fills in that
@@ -209,19 +275,31 @@ All the secrets in `docker/authelia/`, `docker/dev-stack.env`,
 dev-only stack (matching the BDD suite's own test containers, see
 AGENTS.md) - never reuse them for a real deployment.
 
-## Architecture & conventions
+## Code layout & conventions
 
-- `src/` layout, package name `bridge`. `uv.lock` pins all dependencies -
-  regenerate it with `uv lock` after changing dependencies, and commit the updated
-  lockfile.
-- Flask blueprints per concern, registered in `src/bridge/app.py`.
+- `src/` layout, package name `bridge`. Dependencies are managed with
+  [uv](https://docs.astral.sh/uv/) and pinned via `uv.lock` - regenerate it with
+  `uv lock` after changing dependencies, and commit the updated lockfile.
+- Flask blueprints per concern, registered in `src/bridge/app.py`:
+  - `routes/trigger.py` - the Mealie recipe-action entry point
+  - `routes/review.py` - shopping-list choice, ingredient review, item search,
+    and the push to KitchenOwl
+  - `routes/auth.py` and `auth.py` - OIDC login and the app-wide login gate
+  - `routes/health.py`, `routes/index.py` - health endpoint and home page
+- `clients/mealie.py` and `clients/kitchenowl.py` wrap the two HTTP APIs;
+  `ingredients.py` turns Mealie's structured ingredient fields into a name,
+  quantity and note; `matching.py` does the lemmatized fuzzy matching and the
+  search-as-you-type ranking.
+- Server-rendered Jinja templates with [Bulma](https://bulma.io/) for styling and
+  [htmx](https://htmx.org/) for the item search; both are vendored under
+  `src/bridge/static/`.
 - UI design follows KitchenOwl's own UI (layout, styling, interaction patterns)
   rather than Mealie's or an independent style, since the bridge's screens are the
   step just before pushing onto a KitchenOwl list and should feel like part of that
   experience.
 
 See [AGENTS.md](AGENTS.md) for how new features get built (the BDD-driven
-workflow) and for the reasoning behind decisions deliberately deferred so far.
+workflow) and for the reasoning behind decisions deferred so far.
 
 ## Commits
 
