@@ -5,10 +5,12 @@
 A Flask bridge that, when triggered from a Mealie recipe action, lets the
 user review a recipe's ingredients and push them onto a KitchenOwl shopping list.
 
-This repository currently contains only the **skeleton**: an app factory, a working
-`/healthz` endpoint, and placeholder modules for the real capabilities. The
-recipe-action trigger, the ingredient review UI, and the KitchenOwl push are
-deliberately unimplemented — they get built one feature request at a time.
+That whole path works today: the recipe-action trigger, the shopping-list choice,
+the ingredient review screen (quantities, Mealie notes, fuzzy matching against
+KitchenOwl's item catalog, already-on-the-list hints) and the push to KitchenOwl.
+See README.md for what each screen offers and how the pieces fit together.
+Further capabilities get built one feature request at a time, via the workflow
+below.
 
 ## The BDD workflow
 
@@ -66,6 +68,9 @@ Every new feature request is turned into an acceptance test *before* it's implem
    without going through Flask) — `requests_mock` is the right tool even for
    KitchenOwl-client error paths here, since simulating e.g. a 500 response is
    impractical against the real instance used at the BDD tier.
+5. **Update README.md in the same change** — see "Keeping the README current"
+   below for what to touch. A feature isn't finished while the README still
+   describes the behavior it replaced.
 
 ## Deferred decisions
 
@@ -103,9 +108,28 @@ records *why* each thing is the way it is and *when* it's worth reconsidering:
 
 ## Conventions
 
-See README.md's "Architecture & conventions" section (package layout, blueprint
+See README.md's "Code layout & conventions" section (package layout, blueprint
 structure, UI design direction) and "Commits" section (Conventional
 Commits format used in this repo).
+
+### Keeping the README current
+
+README.md is the description of what the bridge *currently* does - always update
+it in the same change that makes it wrong, never as a follow-up. Treat it as part
+of the change, not as documentation owed afterwards:
+
+- New or changed user-facing behavior → update "How it works" (and the screenshot
+  below it, if the screen changed).
+- New or changed environment variable → update "Configuration" *and*
+  `.env.example`.
+- New module, blueprint or dependency → update "Code layout & conventions"; a
+  changed call between the bridge and Mealie/KitchenOwl/the OIDC provider → update
+  the "Architecture" Mermaid diagram.
+- Changed setup, test or Docker workflow → update the corresponding section.
+
+The same goes for statements that quietly go stale: if a sentence in the README no
+longer matches the code you just read, fix it while you are there, whether or not
+your change caused the drift.
 
 ### Screenshots for visual changes
 
@@ -128,6 +152,14 @@ and no screenshots committed to the repo:
 gh pr create --attach './review.png#The review screen with ingredient notes'
 gh pr edit 19 --body-file ./body.md --attach ./review.png   # same for an open PR
 ```
+
+The README's own screenshot is the exception to "no screenshots committed to the
+repo": it lives at `docs/screenshots/review-screen.png` and is captured the same
+throwaway-test way, against a real KitchenOwl container so the matching and
+already-on-the-list hints show real data. Take it from a context with
+`device_scale_factor=2` and screenshot the `section.section` element rather than
+the viewport, so the image is crisp and cropped to the content. Regenerate it
+whenever the review screen changes.
 
 ### Rewriting history on feature branches
 
