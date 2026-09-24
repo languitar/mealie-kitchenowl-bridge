@@ -7,32 +7,37 @@
 <h1 class="title is-5">Add ingredients to "{{ shopping_list_name }}"</h1>
 <form method="post" action="{{ url_for('review.push_to_shopping_list', list_id=list_id) }}">
   <div class="table-container">
-    <table class="table is-narrow ingredient-table">
-    <thead>
-      <tr>
+    {# The explicit ARIA roles restate what the table elements already imply.
+       They are needed because the mobile layout gives these elements a
+       non-table `display` (see `style.css`), which drops their implicit roles
+       in browsers - the row/cell semantics, and the locators built on them,
+       would otherwise exist on desktop only. #}
+    <table class="table is-narrow ingredient-table" role="table">
+    <thead role="rowgroup">
+      <tr role="row">
         {# Deliberately unlabelled so the column stays as narrow as its checkbox;
            the name is there for screen readers only. #}
-        <th scope="col"><span class="is-sr-only">Include</span></th>
-        <th scope="col">Ingredient</th>
-        <th scope="col">KitchenOwl item</th>
-        <th scope="col">Already on list</th>
+        <th scope="col" role="columnheader"><span class="is-sr-only">Include</span></th>
+        <th scope="col" role="columnheader">Ingredient</th>
+        <th scope="col" role="columnheader">KitchenOwl item</th>
+        <th scope="col" role="columnheader">Already on list</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody role="rowgroup">
       {% for ingredient in ingredients %}
       {% set match = matches.get(ingredient.name) %}
       {# aria-label pins the row's accessible name to the ingredient, so it stays
          stable as the other cells change (an item picked, suggestions opened). #}
-      <tr class="ingredient-row" aria-label="{{ ingredient.name }}">
-        <td class="select-cell">
+      <tr class="ingredient-row" role="row" aria-label="{{ ingredient.name }}">
+        <td class="select-cell" role="cell">
           <input type="checkbox" id="ingredient-{{ loop.index }}"
                  name="ingredient" value="{{ ingredient.name }}" checked />
         </td>
-        <td class="ingredient-cell">
+        <td class="ingredient-cell" role="cell">
           <label class="checkbox" for="ingredient-{{ loop.index }}">
             {{ ingredient.name }}
             {% if ingredient.quantity %}
-            <span class="has-text-grey" data-testid="ingredient-quantity">({{ ingredient.quantity }})</span>
+            <span class="has-text-grey ingredient-quantity" data-testid="ingredient-quantity">({{ ingredient.quantity }})</span>
             {% endif %}
           </label>
           {% if ingredient.note %}
@@ -44,7 +49,7 @@
           {% endif %}
           <input type="hidden" name="quantity:{{ ingredient.name }}" value="{{ ingredient.quantity or '' }}" />
         </td>
-        <td class="item-cell">
+        <td class="item-cell" role="cell">
           <div class="dropdown">
             <div class="dropdown-trigger">
               <input type="text" class="input is-small item-search-input" name="q"
@@ -69,7 +74,7 @@
           </div>
         </td>
         {# Rewritten by the suggestion buttons when a different item is picked. #}
-        <td class="on-list-cell" data-testid="on-list-cell">
+        <td class="on-list-cell" role="cell" data-testid="on-list-cell">
           {%- if match and match.id in quantities_on_list -%}
           {{ on_list_hint(quantities_on_list[match.id]) }}
           {%- endif -%}
@@ -79,6 +84,6 @@
     </tbody>
     </table>
   </div>
-  <button type="submit" class="button is-primary">Add to shopping list</button>
+  <button type="submit" class="button is-primary submit-button">Add to shopping list</button>
 </form>
 {% endblock %}

@@ -1,6 +1,8 @@
 {# Shared by the review table's "Already on list" column and the item
-   suggestions. The column header carries the wording, so the marker itself is
-   just the quantity already on the list (or a tick, for an item on the list
-   without one) - the `title` stands in for that header inside the suggestion
-   list, which has no header of its own. #}
-{% macro on_list_hint(quantity) %}<span class="on-list-hint" data-testid="on-list-hint" title="Already on this shopping list">{% if quantity %}<span data-testid="on-list-quantity">{{ quantity }}</span>{% else %}&check;{% endif %}</span>{% endmacro %}
+   suggestions. The marker itself is just the quantity already on the list (or a
+   tick, for an item on the list without one): on desktop the column header
+   carries the wording, and the `title` stands in for that header inside the
+   suggestion list, which has no header of its own. The mobile layout has
+   neither - the columns are stacked and their headers hidden - so it shows the
+   `on-list-label` span instead (see `style.css`). #}
+{% macro on_list_hint(quantity) %}<span class="on-list-hint" data-testid="on-list-hint" title="Already on this shopping list"><span class="on-list-label">Already on list:</span>{% if quantity %}<span data-testid="on-list-quantity">{{ quantity }}</span>{% else %}&check;{% endif %}</span>{% endmacro %}

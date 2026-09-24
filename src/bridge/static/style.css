@@ -43,6 +43,12 @@
   white-space: nowrap;
 }
 
+/* Where the name is allowed to wrap (on mobile), the quantity still has to stay
+   in one piece - "(1 bunch)" broken across two lines reads as two things. */
+.ingredient-quantity {
+  white-space: nowrap;
+}
+
 /* Mealie shows an ingredient's note beneath the ingredient itself, smaller and
    dimmer - mirrored here so the note informs the choice without competing with
    the name. */
@@ -74,26 +80,122 @@
   white-space: nowrap;
 }
 
+/* Only the stacked mobile layout shows this - everywhere else the column header
+   or the marker's `title` already says what the quantity means. */
+.on-list-label {
+  display: none;
+}
+
 .ingredient-table th:last-child,
 .on-list-cell {
   text-align: right;
   white-space: nowrap;
 }
 
-/* Too narrow for the table's natural widths: let names wrap and the search box
-   shrink, rather than making the whole table scroll sideways. */
-@media (max-width: 34rem) {
+/* Phones (Bulma's `mobile` breakpoint - everything up to its `tablet` width of
+   769px), which are a primary target for this app: the bridge is typically
+   triggered from Mealie while standing in the kitchen.
+
+   Three columns cannot hold a name, a search box and a quantity side by side at
+   these widths without squeezing all three - names wrap mid-quantity, the search
+   box truncates its placeholder, and the "already on list" column ends up
+   clipped behind the sideways scroll of `.table-container`. Bulma does not solve
+   this on its own: it makes a table scroll horizontally rather than reflow. So
+   each ingredient becomes a stacked block instead - checkbox and name on one
+   line, then the note, the item search, and the already-on-list hint beneath
+   it. */
+@media screen and (max-width: 768px) {
+  .ingredient-table,
+  .ingredient-table tbody,
+  .ingredient-table td {
+    display: block;
+  }
+
+  .ingredient-table {
+    width: 100%;
+  }
+
+  /* Nothing is in columns any more, so the column headers have nothing to label;
+     the cells that need wording carry their own (see `_on_list_hint.html`). */
+  .ingredient-table thead {
+    display: none;
+  }
+
+  /* With the table reflowed, there is nothing left to scroll sideways - and the
+     container's own `overflow` would otherwise clip the suggestion dropdown. */
+  .table-container {
+    overflow: visible;
+  }
+
+  .ingredient-table .ingredient-row {
+    display: grid;
+    /* The checkbox keeps its own column so the name, note, search box and hint
+       all line up against it. */
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "select ingredient"
+      ".      item"
+      ".      on-list";
+    gap: 0.4rem 0.6rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--bulma-border-weak);
+  }
+
+  .ingredient-table .ingredient-row td {
+    border: 0;
+    padding: 0;
+  }
+
+  .ingredient-table .select-cell {
+    grid-area: select;
+    width: auto;
+    /* Aligned with the name's first line rather than centred on a block whose
+       height a long note would drive. */
+    align-self: start;
+  }
+
+  /* Comfortably tappable, unlike the browser's default ~13px box. */
+  .ingredient-table .select-cell input[type="checkbox"] {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
   .ingredient-table .ingredient-cell {
+    grid-area: ingredient;
+    /* The full width of the block is available now, so a long name can wrap
+       instead of forcing the layout wider. */
     white-space: normal;
+  }
+
+  .ingredient-table .ingredient-note {
+    max-width: none;
   }
 
   .ingredient-table .item-cell {
-    min-width: 8rem;
+    grid-area: item;
+    /* The grid column, not this minimum, decides the width here. */
+    min-width: 0;
   }
 
-  /* Wrapping the header buys the ingredient column the width it needs more. */
-  .ingredient-table th:last-child {
-    white-space: normal;
+  /* Bulma's `is-small` font would make iOS Safari zoom the page in on focus. */
+  .ingredient-table .item-cell .item-search-input {
+    font-size: 1rem;
+  }
+
+  .ingredient-table .on-list-cell {
+    grid-area: on-list;
+    text-align: left;
+  }
+
+  .on-list-label {
+    display: inline;
+    margin-right: 0.25rem;
+  }
+
+  /* A full-width primary action is easier to hit with a thumb. */
+  .submit-button {
+    display: block;
+    width: 100%;
   }
 }
 

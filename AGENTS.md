@@ -131,6 +131,32 @@ The same goes for statements that quietly go stale: if a sentence in the README 
 longer matches the code you just read, fix it while you are there, whether or not
 your change caused the drift.
 
+### Phones are an explicit target
+
+The bridge is typically triggered from Mealie on a phone, standing in the kitchen
+with the shopping list about to be used - so every screen has to *work* at phone
+widths, not merely survive them. A screen that fits only by scrolling sideways,
+or that hides part of itself behind a scroll container, is a broken screen, not a
+degraded one.
+
+- Design for Bulma's `mobile` breakpoint (up to 768px) and check the result at a
+  small phone width - 360px, and ideally 320px too.
+- Bulma does not make this happen on its own. Its responsiveness covers columns,
+  navbars and spacing helpers; a `table` is *not* reflowed - `.table-container`
+  only wraps it in a sideways scroll, which is exactly the failure above. Wide
+  horizontal layouts need their own `@media` rules to stack vertically on
+  phones (see `.ingredient-table` in `static/style.css`).
+- Changing an element's `display` for a mobile layout drops the implicit ARIA
+  role that came with it - a `<table>` given `display: block` stops being a table
+  for assistive technology, and for the role-based locators the BDD tier uses.
+  Spell the roles out in the markup (`role="row"`, `role="cell"`, ...) when doing
+  this, as `select_ingredients.html` does.
+- Keep form controls at a 16px font on phones; anything smaller makes iOS Safari
+  zoom the page in when the field is focused.
+- `recipe_to_shopping_list.feature` has scenarios asserting that nothing on the
+  review screen scrolls sideways at a phone width. Extend that guard when adding
+  a screen rather than checking by eye only.
+
 ### Screenshots for visual changes
 
 A PR that changes how the UI *looks* - a template's markup, `static/style.css`,
@@ -153,13 +179,19 @@ gh pr create --attach './review.png#The review screen with ingredient notes'
 gh pr edit 19 --body-file ./body.md --attach ./review.png   # same for an open PR
 ```
 
-The README's own screenshot is the exception to "no screenshots committed to the
-repo": it lives at `docs/screenshots/review-screen.png` and is captured the same
-throwaway-test way, against a real KitchenOwl container so the matching and
-already-on-the-list hints show real data. Take it from a context with
-`device_scale_factor=2` and screenshot the `section.section` element rather than
-the viewport, so the image is crisp and cropped to the content. Regenerate it
-whenever the review screen changes.
+A screen whose mobile layout changed needs a screenshot at a phone width too, not
+just at desktop width - the two layouts are different enough that one says nothing
+about the other.
+
+The README's own screenshots are the exception to "no screenshots committed to the
+repo": `docs/screenshots/review-screen.png` and `review-screen-mobile.png` are
+captured the same throwaway-test way, against a real KitchenOwl container so the
+matching and already-on-the-list hints show real data. Take them from a context
+with `device_scale_factor=2`, and mind the viewport width - anything at or below
+768px renders the stacked mobile layout, so the desktop shot needs a wider one
+(800px works; the mobile one is taken at 375px). Screenshot the `section.section`
+element rather than the viewport, so the image is crisp and cropped to the
+content. Regenerate both whenever the review screen changes.
 
 ### Rewriting history on feature branches
 

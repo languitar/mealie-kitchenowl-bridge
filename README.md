@@ -40,6 +40,16 @@ What the review screen offers:
   the chosen list, so an ingredient that is already covered is visible before
   pushing. The same marker appears on search suggestions.
 - **Unchecking** an ingredient excludes it from the push.
+- **Phone layout**: below Bulma's `mobile` breakpoint the review table stacks
+  into one block per ingredient - checkbox and name on one line, then the note,
+  the item search and the already-on-list hint - so nothing is squeezed into
+  columns too narrow to read or hidden behind a sideways scroll. Triggering the
+  bridge from a phone in the kitchen is the common case, so this is a supported
+  layout rather than a fallback.
+
+  <img src="docs/screenshots/review-screen-mobile.png" width="320"
+       alt="The same review screen on a phone, with each ingredient stacked into its own block" />
+
 - **Quantity merging** is KitchenOwl's own: the push uses the same
   `recipeitems` endpoint as KitchenOwl's recipe import, which merges same-unit
   quantities (100 g plus 50 g becomes 150 g) and otherwise appends the new
